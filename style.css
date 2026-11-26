@@ -94,6 +94,50 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     color: #b45309;
 }
 
+/* Ενιαία Μπάρα Αριθμητικών Στοιχείων */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+@media (max-width: 900px) {
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-bottom: 3px solid var(--primary);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+.stat-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.stat-num {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-top: 2px;
+}
+
+
 /* Controls & Filters */
 .controls {
     display: flex;
@@ -326,4 +370,38 @@ tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
     .single-upload-box, .controls, .tree-controls { display: none !important; }
     body { background: #fff; padding: 0; }
     .card { box-shadow: none; border: 1px solid #999; }
+}
+
+/* Στοιχεία επικοινωνίας εκπαιδευτικού κάτω από το ονοματεπώνυμο */
+.teacher-contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-top: 3px;
+}
+.teacher-contact span {
+    white-space: nowrap;
+}
+
+/* Στοιχεία επικοινωνίας ΕΠΑΛ στη μπλε μπάρα */
+.epal-contact-info {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-left: 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #e0f2fe;
+    cursor: text;
+    user-select: text;
+}
+.epal-contact-info span {
+    background: rgba(15, 23, 42, 0.22);
+    padding: 2px 8px;
+    border-radius: 5px;
 }

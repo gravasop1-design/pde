@@ -16,17 +16,48 @@
     </header>
 
     <!-- Ενιαίο Πλαίσιο Αρχείων Excel -->
+        <!-- Ενιαίο Πλαίσιο Αρχείων Excel -->
     <section class="single-upload-box" id="uploadBox">
         <div class="upload-top-row">
-            <label for="multiFiles" class="upload-main-label">📂 Αρχεία Δεδομένων Excel (Τμήματα.xlsx, Αναθέσεις.xlsx, Μαθητευόμενοι.xlsx):</label>
+            <label for="multiFiles" class="upload-main-label">📂 Αρχεία Δεδομένων Excel (Τμήματα, Αναθέσεις, Μαθητευόμενοι, Εκπαιδευτικοί):</label>
             <input type="file" id="multiFiles" accept=".xlsx" multiple>
         </div>
         <div class="upload-statuses">
             <span id="status1" class="status-pill">1. Τμήματα: ⏳ Αναζήτηση...</span>
             <span id="status2" class="status-pill">2. Αναθέσεις: ⏳ Αναζήτηση...</span>
             <span id="status3" class="status-pill">3. Μαθητευόμενοι: ⏳ Αναζήτηση...</span>
+            <span id="status4" class="status-pill">4. Εκπαιδευτικοί: ⏳ Αναζήτηση...</span>
         </div>
     </section>
+
+    <!-- Ενιαία Μπάρα Αριθμητικών Στοιχείων -->
+    <section class="stats-bar" id="statsBar" style="display:none;">
+        <div class="stat-item">
+            <span class="stat-label">ΔΔΕ</span>
+            <span class="stat-num" id="statDde">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">ΕΠΑΛ</span>
+            <span class="stat-num" id="statEpal">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Ειδικότητες</span>
+            <span class="stat-num" id="statEid">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Τμήματα</span>
+            <span class="stat-num" id="statTmimata">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Εκπαιδευτικοί</span>
+            <span class="stat-num" id="statTeachers">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Μαθητευόμενοι</span>
+            <span class="stat-num" id="statStudents">0</span>
+        </div>
+    </section>
+
 
     <!-- Φίλτρα & Ενέργειες -->
     <section class="controls">

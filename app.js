@@ -1,10 +1,12 @@
-
-let data1 = [], data2 = [], data3 = [];
+let data1 = [], data2 = [], data3 = [], data4 = [];
 let allSections = [];
 let currentFiltered = [];
 let teachersBySection = new Map();
 let studentsBySection = new Map();
+let teachersInfoByAm = new Map();
 let selectedTmimaId = '';
+let epalContactMap = new Map();
+
 
 const cleanKey = (val) => String(val ?? '').trim();
 
@@ -135,7 +137,8 @@ async function autoLoadExcelFiles() {
     const filesConfig = [
         { url: 'Τμήματα.xlsx', index: 1, name: '1. Τμήματα' },
         { url: 'Αναθέσεις.xlsx', index: 2, name: '2. Αναθέσεις' },
-        { url: 'Μαθητευόμενοι.xlsx', index: 3, name: '3. Μαθητευόμενοι' }
+        { url: 'Μαθητευόμενοι.xlsx', index: 3, name: '3. Μαθητευόμενοι' },
+        { url: 'Εκπαιδευτικοί.xlsx', index: 4, name: '4. Εκπαιδευτικοί' }
     ];
 
     for (const item of filesConfig) {
@@ -149,6 +152,7 @@ async function autoLoadExcelFiles() {
             if (item.index === 1) data1 = parsed;
             if (item.index === 2) data2 = parsed;
             if (item.index === 3) data3 = parsed;
+            if (item.index === 4) data4 = parsed;
 
             statusEl.textContent = `${item.name}: ✔ ${parsed.length}`;
             statusEl.className = 'status-pill loaded';
@@ -162,7 +166,6 @@ async function autoLoadExcelFiles() {
 
 window.addEventListener('DOMContentLoaded', autoLoadExcelFiles);
 
-// Ενιαία επιλογή 1 έως 3 αρχείων Excel μαζί
 document.getElementById('multiFiles').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -172,7 +175,7 @@ document.getElementById('multiFiles').addEventListener('change', async (e) => {
             const buf = await file.arrayBuffer();
             const parsed = await parseXlsxBuffer(buf);
             const fname = normalizeText(file.name);
-            const firstRow = parsed[0] || {};
+            const firstRow = parsed || {};
 
             if (fname.includes('τμημα') || ('ΠΛΗΘΟΣ ΕΓΚΡΙΣΗΣ ΤΜΗΜΑΤΟΣ' in firstRow)) {
                 data1 = parsed;
@@ -184,10 +187,15 @@ document.getElementById('multiFiles').addEventListener('change', async (e) => {
                 const el = document.getElementById('status2');
                 el.textContent = `2. Αναθέσεις: ✔ ${parsed.length}`;
                 el.className = 'status-pill loaded';
-            } else if (fname.includes('μαθητ') || ('ΕΠΩΝΥΜΟ' in firstRow)) {
+            } else if (fname.includes('μαθητ') || ('Α/Α ΤΜΗΜΑΤΟΣ' in firstRow && 'ΕΠΩΝΥΜΟ' in firstRow)) {
                 data3 = parsed;
                 const el = document.getElementById('status3');
                 el.textContent = `3. Μαθητευόμενοι: ✔ ${parsed.length}`;
+                el.className = 'status-pill loaded';
+            } else if (fname.includes('εκπαιδ') || ('ΑΜ' in firstRow && !('Αρ. Τμήματος' in firstRow))) {
+                data4 = parsed;
+                const el = document.getElementById('status4');
+                el.textContent = `4. Εκπαιδευτικοί: ✔ ${parsed.length}`;
                 el.className = 'status-pill loaded';
             }
         } catch (err) {
@@ -197,18 +205,63 @@ document.getElementById('multiFiles').addEventListener('change', async (e) => {
     rebuildData();
 });
 
+// Βοηθητική συνάρτηση για κανονικοποίηση ΑΜ (αφαιρεί κενά και αρχικά μηδενικά)
+const normalizeAm = (val) => cleanKey(val).replace(/^0+/, '');
+
+// Βοηθητική συνάρτηση που βρίσκει τιμή στήλης ανεξαρτήτως τόνων/πεζών-κεφαλαίων
+function getColByKeywords(row, keywords) {
+    for (const [key, val] of Object.entries(row)) {
+        const normKey = normalizeText(key);
+        if (keywords.some(kw => normKey.includes(kw))) {
+            const v = cleanKey(val);
+            if (v) return v;
+        }
+    }
+    return '';
+}
+
 function rebuildData() {
     const map = new Map();
     teachersBySection = new Map();
     studentsBySection = new Map();
+    teachersInfoByAm = new Map();
+    epalContactMap = new Map();
 
+    // 4. Ευρετήριο στοιχείων επικοινωνίας εκπαιδευτικών ανά ΑΜ
+    data4.forEach(r => {
+        const rawAm = cleanKey(r['ΑΜ'] || r['Α.Μ.'] || r['Αριθμός Μητρώου']) || getColByKeywords(r, ['αμ', 'μητρω']);
+        const am = normalizeAm(rawAm);
+        if (!am) return;
+
+        const phone = cleanKey(r['ΚΙΝΗΤΟ'] || r['Κινητό'] || r['ΤΗΛΕΦΩΝΟ'] || r['Τηλέφωνο']) || getColByKeywords(r, ['κινητ', 'τηλεφ']);
+        const email = cleanKey(r['EMAIL'] || r['Email'] || r['E-MAIL'] || r['E-mail']) || getColByKeywords(r, ['mail', 'ταχυδρομ', 'ηλεκτρον']);
+
+        teachersInfoByAm.set(am, { phone, email });
+    });
+
+    // 1. Αρχείο Τμημάτων + στοιχεία επικοινωνίας ΕΠΑΛ
     data1.forEach(r => {
         const id = cleanKey(r['Α/Α ΤΜΗΜΑΤΟΣ']);
+        const dde = cleanKey(r['ΔΔΕ']) || 'ΧΩΡΙΣ ΔΔΕ';
+        const epal = cleanKey(r['ΕΠΑΛ']) || 'ΧΩΡΙΣ ΕΠΑΛ';
+
+        const epalKey = `${dde}||${epal}`;
+        const phone = cleanKey(r['ΤΗΛΕΦΩΝΟ'] || r['Τηλέφωνο'] || r['ΤΗΛ'] || r['ΤΗΛ. ΕΠΑΛ'] || r['ΤΗΛΕΦΩΝΟ ΕΠΑΛ']) || getColByKeywords(r, ['τηλεφ', 'τηλ', 'κινητ']);
+        const email = cleanKey(r['EMAIL'] || r['Email'] || r['E-MAIL'] || r['EMAIL ΕΠΑΛ'] || r['E-MAIL ΕΠΑΛ']) || getColByKeywords(r, ['mail', 'ταχυδρομ', 'ηλεκτρον']);
+
+        if (phone || email) {
+            const existing = epalContactMap.get(epalKey) || { phone: '', email: '' };
+            epalContactMap.set(epalKey, {
+                phone: existing.phone || phone,
+                email: existing.email || email
+            });
+        }
+
         if (id) {
             map.set(id, {
                 id,
-                dde: cleanKey(r['ΔΔΕ']) || 'ΧΩΡΙΣ ΔΔΕ',
-                epal: cleanKey(r['ΕΠΑΛ']) || 'ΧΩΡΙΣ ΕΠΑΛ',
+                dde,
+                epal,
                 day: cleanKey(r['ΗΜΕΡΑ ΔΙΔΑΣΚΑΛΙΑΣ']),
                 eid: cleanKey(r['ΕΙΔΙΚΟΤΗΤΑ']) || 'ΧΩΡΙΣ ΕΙΔΙΚΟΤΗΤΑ',
                 egkrisi: cleanKey(r['ΠΛΗΘΟΣ ΕΓΚΡΙΣΗΣ ΤΜΗΜΑΤΟΣ'])
@@ -216,6 +269,7 @@ function rebuildData() {
         }
     });
 
+    // 2. Αρχείο Αναθέσεων
     data2.forEach(r => {
         const id = cleanKey(r['Αρ. Τμήματος']);
         if (!id) return;
@@ -235,6 +289,7 @@ function rebuildData() {
         }
     });
 
+    // 3. Αρχείο Μαθητευομένων
     data3.forEach(r => {
         const id = cleanKey(r['Α/Α ΤΜΗΜΑΤΟΣ']);
         if (!id) return;
@@ -455,10 +510,19 @@ function renderGroupedTable(list) {
             const epalSections = items.length;
             const epalStudents = items.reduce((sum, x) => sum + (studentsBySection.get(x.id)?.length || 0), 0);
 
+            const contact = epalContactMap.get(`${ddeName}||${epalName}`);
+            const contactBadges = [];
+            if (contact?.phone) contactBadges.push(`<span>📞 ${escapeHTML(contact.phone)}</span>`);
+            if (contact?.email) contactBadges.push(`<span>✉️ ${escapeHTML(contact.email)}</span>`);
+            const epalContactHtml = contactBadges.length > 0
+                ? `<span class="epal-contact-info" onclick="event.stopPropagation()">${contactBadges.join('')}</span>`
+                : '';
+
             html += `
                 <tr class="group-epal child-of-${ddeKey}" data-epal="${epalKey}" data-collapsed="false" onclick="toggleEpal('${epalKey}', this)">
                     <td colspan="4">
                         <span class="toggle-arrow">▼</span> 🏫 ${escapeHTML(epalName)}
+                        ${epalContactHtml}
                         <span class="group-badge">Τμήματα: ${epalSections} | Μαθητές: ${epalStudents}</span>
                     </td>
                 </tr>
@@ -582,19 +646,33 @@ window.showTeachers = function(tmimaId) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${teachers.map(t => `
-                            <tr>
-                                <td><strong>${escapeHTML(t['Εκπαιδευτικός'])}</strong></td>
-                                <td>${escapeHTML(t['Κλάδος'])}</td>
-                                <td>${escapeHTML(t['Ιδιότητα'])}</td>
-                                <td>${escapeHTML(t['ΑΜ'])}</td>
-                                <td>${escapeHTML(t['Αρ. Πρακτικού'])}</td>
-                                <td>${escapeHTML(formatDate(t['Ημερομηνία']))}</td>
-                                <td>${escapeHTML(t['Ώρες'])}</td>
-                                <td>${escapeHTML(t['Τύπος'])}</td>
-                                <td><span class="badge ${cleanKey(t['Έγκριση']) === 'ΝΑΙ' ? 'badge-ok' : 'badge-stop'}">${escapeHTML(t['Έγκριση'])}</span></td>
-                            </tr>
-                        `).join('')}
+                        ${teachers.map(t => {
+                            const rawAm = cleanKey(t['ΑΜ']);
+                            const info = teachersInfoByAm.get(normalizeAm(rawAm));
+                            const contactParts = [];
+                            if (info?.phone) contactParts.push(`<span>📱 ${escapeHTML(info.phone)}</span>`);
+                            if (info?.email) contactParts.push(`<span>✉️ ${escapeHTML(info.email)}</span>`);
+                            const contactHtml = contactParts.length > 0
+                                ? `<div class="teacher-contact">${contactParts.join('')}</div>`
+                                : '';
+
+                            return `
+                                <tr>
+                                    <td>
+                                        <strong>${escapeHTML(t['Εκπαιδευτικός'])}</strong>
+                                        ${contactHtml}
+                                    </td>
+                                    <td>${escapeHTML(t['Κλάδος'])}</td>
+                                    <td>${escapeHTML(t['Ιδιότητα'])}</td>
+                                    <td>${escapeHTML(rawAm)}</td>
+                                    <td>${escapeHTML(t['Αρ. Πρακτικού'])}</td>
+                                    <td>${escapeHTML(formatDate(t['Ημερομηνία']))}</td>
+                                    <td>${escapeHTML(t['Ώρες'])}</td>
+                                    <td>${escapeHTML(t['Τύπος'])}</td>
+                                    <td><span class="badge ${cleanKey(t['Έγκριση']) === 'ΝΑΙ' ? 'badge-ok' : 'badge-stop'}">${escapeHTML(t['Έγκριση'])}</span></td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>`;
@@ -662,6 +740,40 @@ window.showStudents = function(tmimaId) {
 
     openModal(`🎓 Μαθητευόμενοι — Τμήμα ${tmimaId} (${students.length})${subtitle}`, bodyHtml, tmimaId);
 };
+
+
+// Αυτόματη ενημέρωση της νέας μπάρας αριθμών (ΔΔΕ, ΕΠΑΛ, Ειδικότητες, Τμήματα, Εκπαιδευτικοί, Μαθητευόμενοι)
+const _origRenderGroupedTable = renderGroupedTable;
+renderGroupedTable = function(list) {
+    const bar = document.getElementById('statsBar');
+    if (bar) {
+        if (allSections.length === 0) {
+            bar.style.display = 'none';
+        } else {
+            bar.style.display = 'grid';
+            const uniqueTeachers = new Set();
+            let totalStudents = 0;
+
+            list.forEach(sec => {
+                totalStudents += (studentsBySection.get(sec.id)?.length || 0);
+                (teachersBySection.get(sec.id) || []).forEach(t => {
+                    const key = normalizeAm(t['ΑΜ']) || normalizeText(t['Εκπαιδευτικός']);
+                    if (key) uniqueTeachers.add(key);
+                });
+            });
+
+            document.getElementById('statDde').textContent = new Set(list.map(x => x.dde)).size;
+            document.getElementById('statEpal').textContent = new Set(list.map(x => `${x.dde}||${x.epal}`)).size;
+            document.getElementById('statEid').textContent = new Set(list.map(x => x.eid)).size;
+            document.getElementById('statTmimata').textContent = list.length;
+            document.getElementById('statTeachers').textContent = uniqueTeachers.size;
+            document.getElementById('statStudents').textContent = totalStudents;
+        }
+    }
+    _origRenderGroupedTable(list);
+};
+
+
 
 
 
