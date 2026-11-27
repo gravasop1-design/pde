@@ -1,4 +1,3 @@
-
 :root {
     --primary: #1e40af;
     --primary-hover: #1d4ed8;
@@ -30,16 +29,8 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     margin-bottom: 18px;
     box-shadow: 0 4px 14px rgba(30, 58, 138, 0.2);
 }
-.page-header-banner h1 {
-    color: #ffffff;
-    font-size: 1.55rem;
-    margin: 0 0 6px 0;
-}
-.page-header-banner .subtitle {
-    color: #dbeafe;
-    font-size: 0.92rem;
-    margin: 0;
-}
+.page-header-banner h1 { color: #ffffff; font-size: 1.55rem; margin: 0 0 6px 0; }
+.page-header-banner .subtitle { color: #dbeafe; font-size: 0.92rem; margin: 0; }
 
 /* Ενιαίο Πλαίσιο Excel */
 .single-upload-box {
@@ -61,19 +52,9 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     align-items: center;
     gap: 12px;
 }
-.upload-main-label {
-    font-weight: 700;
-    font-size: 0.92rem;
-    color: var(--primary);
-}
-.single-upload-box input[type="file"] {
-    font-size: 0.85rem;
-}
-.upload-statuses {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
+.upload-main-label { font-weight: 700; font-size: 0.92rem; color: var(--primary); }
+.single-upload-box input[type="file"] { font-size: 0.85rem; }
+.upload-statuses { display: flex; flex-wrap: wrap; gap: 10px; }
 .status-pill {
     font-size: 0.82rem;
     font-weight: 600;
@@ -83,16 +64,8 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     border-radius: 20px;
     color: var(--muted);
 }
-.status-pill.loaded {
-    background: var(--success-bg);
-    border-color: #86efac;
-    color: var(--success);
-}
-.status-pill.warn {
-    background: #fffbeb;
-    border-color: #fcd34d;
-    color: #b45309;
-}
+.status-pill.loaded { background: var(--success-bg); border-color: #86efac; color: var(--success); }
+.status-pill.warn { background: #fffbeb; border-color: #fcd34d; color: #b45309; }
 
 /* Ενιαία Μπάρα Αριθμητικών Στοιχείων */
 .stats-bar {
@@ -106,12 +79,8 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     margin-bottom: 18px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
-@media (max-width: 900px) {
-    .stats-bar { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 480px) {
-    .stats-bar { grid-template-columns: repeat(2, 1fr); }
-}
+@media (max-width: 900px) { .stats-bar { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
 .stat-item {
     display: flex;
     flex-direction: column;
@@ -123,20 +92,8 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     border-radius: 8px;
     padding: 8px 10px;
 }
-.stat-label {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-.stat-num {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: var(--primary-dark);
-    margin-top: 2px;
-}
-
+.stat-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.stat-num { font-size: 1.35rem; font-weight: 700; color: var(--primary-dark); margin-top: 2px; }
 
 /* Controls & Filters */
 .controls {
@@ -156,7 +113,7 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
     flex-direction: column;
     gap: 5px;
     flex: 1;
-    min-width: 200px;
+    min-width: 185px;
 }
 .filter-item label { font-weight: 700; font-size: 0.85rem; color: var(--primary); }
 select, input[type="text"] {
@@ -174,18 +131,14 @@ select:focus, input[type="text"]:focus {
     box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.12);
 }
 
-.action-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
+.action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn {
     border: none;
-    padding: 9px 15px;
+    padding: 9px 14px;
     border-radius: 7px;
     cursor: pointer;
     font-weight: 600;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     transition: background 0.2s, transform 0.1s;
     white-space: nowrap;
 }
@@ -196,6 +149,14 @@ select:focus, input[type="text"]:focus {
 .btn-success:hover { background: #15803d; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-hover); }
+.btn-info { background: #0284c7; color: #fff; }
+.btn-info:hover { background: #0369a1; }
+
+
+
+
+
+
 
 /* Main Card & Table */
 .card {
@@ -234,11 +195,7 @@ select:focus, input[type="text"]:focus {
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 
-/* Σταθερή κατανομή στηλών στον κύριο πίνακα */
-table.main-sections-table {
-    table-layout: fixed;
-    min-width: 780px;
-}
+table.main-sections-table { table-layout: fixed; min-width: 780px; }
 table.main-sections-table col.col-eid { width: 58%; }
 table.main-sections-table col.col-tmima { width: 14%; }
 table.main-sections-table col.col-students { width: 12%; }
@@ -258,11 +215,10 @@ th {
 }
 
 /* Accordion Groups */
-tr.group-dde, tr.group-epal { cursor: pointer; user-select: none; }
+tr.group-pde, tr.group-dde, tr.group-epal { cursor: pointer; user-select: none; }
 
-tr.group-pde { cursor: pointer; user-select: none; }
 tr.group-pde td {
-    background: #dbeafe; /* Ανοιχτό γαλάζιο */
+    background: #dbeafe;
     color: var(--primary-dark);
     font-weight: 700;
     font-size: 0.98rem;
@@ -270,38 +226,14 @@ tr.group-pde td {
     border-bottom: 1px solid #93c5fd;
 }
 tr.group-pde:hover td { background: #bfdbfe; }
-tr.group-pde .group-badge {
-    background: var(--primary-dark);
-    color: #ffffff;
-}
-
-/* Ελαφριά εσοχή στη ΔΔΕ αφού πλέον βρίσκεται κάτω από την ΠΔΕ */
-tr.group-dde td { padding-left: 16px; }
-tr.group-pde:hover td { background: #1e293b; }
-tr.group-pde .group-badge { background: var(--primary-dark) !important; color: #ffffff !important;}
-
-/* Ελαφριά εσοχή στη ΔΔΕ αφού πλέον βρίσκεται κάτω από την ΠΔΕ */
-tr.group-dde td { padding-left: 16px; }
-
-
-
-
-
-.toggle-arrow { display: inline-block; width: 18px; font-size: 0.8rem; }
-
-.group-badge {
-    float: right;
-    font-size: 0.84rem;
-    padding: 2px 10px;
-    border-radius: 6px;
-    font-weight: 600;
-}
+tr.group-pde .group-badge { background: var(--primary-dark); color: #ffffff; }
 
 tr.group-dde td {
     background: var(--primary-dark);
     color: #ffffff;
     font-weight: 700;
     font-size: 0.95rem;
+    padding-left: 16px;
 }
 tr.group-dde:hover td { background: #172554; }
 tr.group-dde .group-badge { background: rgba(255, 255, 255, 0.18); color: #fff; }
@@ -316,11 +248,18 @@ tr.group-epal td {
 tr.group-epal:hover td { background: #2563eb; }
 tr.group-epal .group-badge { background: #dbeafe; color: var(--primary-dark); }
 
-tr.tmima-row td { background: #f8fafc; }
-tr.tmima-row td:first-child {
-    padding-left: 38px;
-    word-wrap: break-word;
+.toggle-arrow { display: inline-block; width: 18px; font-size: 0.8rem; }
+
+.group-badge {
+    float: right;
+    font-size: 0.84rem;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-weight: 600;
 }
+
+tr.tmima-row td { background: #f8fafc; }
+tr.tmima-row td:first-child { padding-left: 38px; word-wrap: break-word; }
 tr.tmima-row:hover td { background: #eff6ff; }
 tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
 
@@ -342,6 +281,142 @@ tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
 .seats-pill { background: var(--success-bg); color: var(--success); border: 1px solid #86efac; }
 .seats-pill:hover { background: #dcfce7; }
 .seats-pill.seats-warn { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+
+/* Στοίχιση Badges Μαθητών (Σύνολο / Διακοπές / ΕΝΕΕΓΥΛ) */
+/* Απόλυτη κάθετη στοίχιση 3 στηλών στη στήλη Μαθητές */
+.students-cell-wrap {
+    display: inline-grid;
+    grid-template-columns: 36px 52px 52px;
+    align-items: center;
+    gap: 5px;
+}
+.pill-placeholder {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.seats-pill {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid #86efac;
+    text-align: center;
+    padding: 4px 0;
+}
+.seats-pill:hover { background: #dcfce7; }
+.seats-pill.seats-warn { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+
+.seats-stop-pill {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid #fca5a5;
+    font-size: 0.76rem;
+    padding: 3px 0;
+    text-align: center;
+}
+.seats-stop-pill:hover { background: #fee2e2; }
+
+.seats-eneegyl-pill {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #4ade80;
+    font-size: 0.76rem;
+    padding: 3px 0;
+    text-align: center;
+}
+.seats-eneegyl-pill:hover { background: #bbf7d0; }
+
+/* Ετικέτα & γραμμή ΕΝΕΕΓΥΛ μέσα στο Modal Μαθητών */
+/* Έντονος πράσινος χρωματισμός γραμμής για μαθητές ΕΝΕΕΓΥΛ */
+.badge-eneegyl {
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #15803d;
+    margin-left: 8px;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    vertical-align: middle;
+}
+
+tr.row-eneegyl td {
+    background-color: #dcfce7 !important;
+    border-bottom: 1px solid #86efac;
+}
+
+tr.row-eneegyl td:first-child {
+    border-left: 5px solid #16a34a;
+    font-weight: 700;
+    color: #166534;
+}
+
+tr.row-eneegyl:hover td {
+    background-color: #bbf7d0 !important;
+}
+.seats-pill {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid #86efac;
+    min-width: 34px;
+    text-align: center;
+}
+.seats-pill:hover { background: #dcfce7; }
+.seats-pill.seats-warn { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+
+.seats-stop-pill {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid #fca5a5;
+    font-size: 0.76rem;
+    padding: 3px 7px;
+    min-width: 44px;
+    text-align: center;
+}
+.seats-stop-pill:hover { background: #fee2e2; }
+
+.seats-eneegyl-pill {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #4ade80;
+    font-size: 0.76rem;
+    padding: 3px 7px;
+    min-width: 44px;
+    text-align: center;
+}
+.seats-eneegyl-pill:hover { background: #bbf7d0; }
+
+/* Ενεργά Links Επικοινωνίας */
+.contact-link {
+    color: inherit;
+    text-decoration: none;
+}
+.contact-link:hover { text-decoration: underline; }
+
+.teacher-contact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-top: 3px;
+}
+.teacher-contact a { color: var(--primary); white-space: nowrap; }
+
+.epal-contact-info {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #e0f2fe;
+}
+.epal-contact-info a {
+    background: rgba(15, 23, 42, 0.24);
+    padding: 2px 8px;
+    border-radius: 5px;
+}
 
 /* Modal */
 .modal-overlay {
@@ -394,72 +469,7 @@ tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
 .badge-stop { background: var(--danger-bg); color: var(--danger); }
 .empty-msg { color: var(--muted); font-style: italic; padding: 15px 0; text-align: center; }
 
-@media print {
-    .single-upload-box, .controls, .tree-controls { display: none !important; }
-    body { background: #fff; padding: 0; }
-    .card { box-shadow: none; border: 1px solid #999; }
-}
-
-/* Στοιχεία επικοινωνίας εκπαιδευτικού κάτω από το ονοματεπώνυμο */
-.teacher-contact {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.78rem;
-    color: var(--muted);
-    font-weight: 400;
-    margin-top: 3px;
-}
-.teacher-contact span {
-    white-space: nowrap;
-}
-
-/* Στοιχεία επικοινωνίας ΕΠΑΛ στη μπλε μπάρα */
-.epal-contact-info {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-left: 12px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: #e0f2fe;
-    cursor: text;
-    user-select: text;
-}
-.epal-contact-info span {
-    background: rgba(15, 23, 42, 0.22);
-    padding: 2px 8px;
-    border-radius: 5px;
-}
-
-.students-cell-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.seats-stop-pill {
-    background: var(--danger-bg);
-    color: var(--danger);
-    border: 1px solid #fca5a5;
-    font-size: 0.78rem;
-    padding: 3px 8px;
-}
-.seats-stop-pill:hover {
-    background: #fee2e2;
-}
-
-.btn-info { background: #0284c7; color: #fff; }
-.btn-info:hover { background: #0369a1; }
-
-.stats-canvas-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-}
+.stats-canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .stats-canvas-wrap canvas {
     max-width: 100%;
     height: auto;
@@ -467,5 +477,86 @@ tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
     border: 1px solid var(--border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
+
+
+
+
+/* Κλικ σε Μαθητή & Καρτέλα Στοιχείων */
+.student-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.student-link:hover { color: var(--primary-hover); }
+
+.student-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--primary-light);
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+.student-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 12px;
+}
+.detail-box {
+    background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+    border: 1px solid #d4e3f8;
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    padding: 10px 14px;
+    transition: background 0.15s, border-color 0.15s;
+}
+.detail-box:hover {
+    background: #e5effd;
+    border-color: #93c5fd;
+}
+.detail-label {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+.detail-val {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-word;
+}
+
+
+
+
+/* Βελτιωμένη Εκτύπωση */
+@media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .single-upload-box, .controls, .tree-controls, .modal-overlay { display: none !important; }
+    body { background: #fff; padding: 0; }
+    .card { box-shadow: none; border: none; padding: 0; }
+    th { position: static; }
+    tr.group-pde, tr.group-dde, tr.group-epal, tr.tmima-row { break-inside: avoid; }
+}
+
+
+
+
+
+
 
 

@@ -1,3 +1,4 @@
+
 // ==========================================
 // 1. ΚΕΝΤΡΙΚΗ ΚΑΤΑΣΤΑΣΗ (STATE) & ΡΥΘΜΙΣΕΙΣ
 // ==========================================
@@ -40,12 +41,27 @@ function escapeHTML(str) {
         .replace(/"/g, '&quot;');
 }
 
+function debounce(fn, delay = 150) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+
 function formatDate(val) {
     const s = cleanKey(val);
     if (!s) return '';
     if (/^\d{5}$/.test(s)) {
         const d = new Date(Math.round((Number(s) - 25569) * 86400 * 1000));
-        return d.toLocaleDateString('el-GR');
+        return d.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+        const yyyy = isoMatch[1];
+        const mm = isoMatch[2].padStart(2, '0');
+        const dd = isoMatch[3].padStart(2, '0');
+        return `${dd}/${mm}/${yyyy}`;
     }
     return s;
 }
@@ -74,6 +90,28 @@ function isStudentStopped(s) {
 }
 
 
+function isStudentEneegyl(s) {
+    // 1. Άμεσος έλεγχος στη στήλη ΕΝΕΕΓΥΛ (στήλη Q)
+    const directVal = normalizeText(s['ΕΝΕΕΓΥΛ'] || s['ΕΝΕΕΓΥΛ '] || s[' ΕΝΕΕΓΥΛ']);
+    if (directVal && directVal !== 'οχι' && directVal !== '0' && directVal !== '-' && directVal !== '—') {
+        return true;
+    }
+
+    // 2. Εφεδρικός έλεγχος σε οποιαδήποτε στήλη έχει όνομα ή τιμή σχετική με ΕΝΕΕΓΥΛ
+    for (const [key, rawVal] of Object.entries(s)) {
+        const k = normalizeText(key).replace(/[.\-\/\s]/g, '');
+        const v = normalizeText(rawVal).replace(/[.\-\/\s]/g, '');
+        if (k.includes('ενεεγυλ') && v && v !== 'οχι' && v !== '0' && v !== '—') {
+            return true;
+        }
+        if (v.includes('ενεεγυλ')) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 function updateFileStatus(index, label, count, isOk = true) {
     const el = document.getElementById(`status${index}`);
@@ -81,6 +119,21 @@ function updateFileStatus(index, label, count, isOk = true) {
     el.textContent = isOk ? `${label}: ✔ ${count}` : `${label}: ⚠️ Επιλέξτε το χειροκίνητα`;
     el.className = isOk ? 'status-pill loaded' : 'status-pill warn';
 }
+
+function downloadCsvFile(filename, headers, rows) {
+    const csvRows = rows.map(row =>
+        row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')
+    );
+    const csvContent = '\uFEFF' + [headers.join(';'), ...csvRows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 
 
 
@@ -194,6 +247,7 @@ async function parseXlsxBuffer(buf) {
 
 
 
+
 // ==========================================
 // 4. ΦΟΡΤΩΣΗ & ΕΠΕΞΕΡΓΑΣΙΑ ΔΕΔΟΜΕΝΩΝ
 // ==========================================
@@ -213,9 +267,6 @@ async function autoLoadExcelFiles() {
     }
     rebuildData();
 }
-
-
-
 
 function rebuildData() {
     const map = new Map();
@@ -306,7 +357,24 @@ function rebuildData() {
         }
     });
 
-    state.allSections = Array.from(map.values()).sort((a, b) =>
+      state.allSections = Array.from(map.values()).map(sec => {
+        const teachers = state.teachersBySection.get(sec.id) || [];
+        const students = state.studentsBySection.get(sec.id) || [];
+        const stoppedCount = students.filter(isStudentStopped).length;
+        const eneegylCount = students.filter(isStudentEneegyl).length;
+
+        const teacherTokens = teachers.map(t => `${t['Εκπαιδευτικός'] || ''} ${t['ΑΜ'] || ''} ${t['Κλάδος'] || ''}`).join(' ');
+        const studentTokens = students.map(s => `${s['ΕΠΩΝΥΜΟ'] || ''} ${s['ΟΝΟΜΑ'] || ''}`).join(' ');
+
+        return {
+            ...sec,
+            stuCount: students.length,
+            stoppedCount,
+            eneegylCount,
+            teaCount: teachers.length,
+            searchIndex: normalizeText(`${sec.id} ${sec.eid} ${sec.epal} ${sec.dde} ${sec.pde} ${sec.day} ${teacherTokens} ${studentTokens}`)
+        };
+    }).sort((a, b) =>
         a.pde.localeCompare(b.pde, 'el') ||
         a.dde.localeCompare(b.dde, 'el') ||
         a.epal.localeCompare(b.epal, 'el') ||
@@ -316,6 +384,11 @@ function rebuildData() {
     populateFilterDropdowns();
     applyFilter();
 }
+
+
+
+
+
 
 
 
@@ -367,6 +440,7 @@ function applyFilter() {
     const ddeVal = document.getElementById('ddeFilter').value;
     const epalVal = document.getElementById('epalFilter').value;
     const eidVal = document.getElementById('eidFilter').value;
+    const statusVal = document.getElementById('statusFilter').value;
     const searchVal = normalizeText(document.getElementById('searchInput').value);
 
     state.currentFiltered = state.allSections.filter(s => {
@@ -374,17 +448,20 @@ function applyFilter() {
         if (ddeVal && s.dde !== ddeVal) return false;
         if (epalVal && s.epal !== epalVal) return false;
         if (eidVal && s.eid !== eidVal) return false;
-        if (searchVal) {
-            const haystack = normalizeText(`${s.id} ${s.eid} ${s.epal} ${s.dde} ${s.pde} ${s.day}`);
-            if (!haystack.includes(searchVal)) return false;
-        }
+
+        if (statusVal === 'has_eneegyl' && s.eneegylCount === 0) return false;
+        if (statusVal === 'has_stopped' && s.stoppedCount === 0) return false;
+        if (statusVal === 'eneegyl_and_stopped' && (s.eneegylCount === 0 || s.stoppedCount === 0)) return false;
+        if (statusVal === 'zero_students' && s.stuCount !== 0) return false;
+        if (statusVal === 'no_teachers' && s.teaCount !== 0) return false;
+
+        if (searchVal && !s.searchIndex.includes(searchVal)) return false;
         return true;
     });
 
     closeModal();
     renderGroupedTable(state.currentFiltered);
 }
-
 
 
 
@@ -408,16 +485,15 @@ function updateStatsBar(list) {
     let totalStudents = 0;
 
     list.forEach(sec => {
-        totalStudents += (state.studentsBySection.get(sec.id)?.length || 0);
+        totalStudents += sec.stuCount;
         (state.teachersBySection.get(sec.id) || []).forEach(t => {
             const key = normalizeAm(t['ΑΜ']) || normalizeText(t['Εκπαιδευτικός']);
             if (key) uniqueTeachers.add(key);
         });
     });
 
-    document.getElementById('statDde').textContent = new Set(list.map(x => x.dde)).size;
     document.getElementById('statPde').textContent = new Set(list.map(x => x.pde)).size;
-
+    document.getElementById('statDde').textContent = new Set(list.map(x => x.dde)).size;
     document.getElementById('statEpal').textContent = new Set(list.map(x => `${x.dde}||${x.epal}`)).size;
     document.getElementById('statEid').textContent = new Set(list.map(x => x.eid)).size;
     document.getElementById('statTmimata').textContent = list.length;
@@ -438,7 +514,6 @@ function renderGroupedTable(list) {
     }
     card.style.display = 'block';
 
-    // Ομαδοποίηση: ΠΔΕ -> ΔΔΕ -> ΕΠΑΛ -> Τμήματα
     const pdeGroups = new Map();
     list.forEach(item => {
         if (!pdeGroups.has(item.pde)) pdeGroups.set(item.pde, new Map());
@@ -468,20 +543,17 @@ function renderGroupedTable(list) {
             <tbody>
     `;
 
-    let pdeIdx = 0;
-    let ddeIdx = 0;
-    let epalIdx = 0;
+    let pdeIdx = 0, ddeIdx = 0, epalIdx = 0;
 
     pdeGroups.forEach((ddeMap, pdeName) => {
         pdeIdx++;
         const pdeKey = `pde-${pdeIdx}`;
-        let pdeSections = 0;
-        let pdeStudents = 0;
+        let pdeSections = 0, pdeStudents = 0;
 
         ddeMap.forEach(epalMap => {
             epalMap.forEach(items => {
                 pdeSections += items.length;
-                pdeStudents += items.reduce((sum, x) => sum + (state.studentsBySection.get(x.id)?.length || 0), 0);
+                pdeStudents += items.reduce((sum, x) => sum + x.stuCount, 0);
             });
         });
 
@@ -497,12 +569,11 @@ function renderGroupedTable(list) {
         ddeMap.forEach((epalMap, ddeName) => {
             ddeIdx++;
             const ddeKey = `dde-${ddeIdx}`;
-            let ddeSections = 0;
-            let ddeStudents = 0;
+            let ddeSections = 0, ddeStudents = 0;
 
             epalMap.forEach(items => {
                 ddeSections += items.length;
-                ddeStudents += items.reduce((sum, x) => sum + (state.studentsBySection.get(x.id)?.length || 0), 0);
+                ddeStudents += items.reduce((sum, x) => sum + x.stuCount, 0);
             });
 
             html += `
@@ -517,12 +588,18 @@ function renderGroupedTable(list) {
             epalMap.forEach((items, epalName) => {
                 epalIdx++;
                 const epalKey = `epal-${epalIdx}`;
-                const epalStudents = items.reduce((sum, x) => sum + (state.studentsBySection.get(x.id)?.length || 0), 0);
+                const epalStudents = items.reduce((sum, x) => sum + x.stuCount, 0);
 
                 const contact = state.epalContactMap.get(`${ddeName}||${epalName}`);
                 const contactBadges = [];
-                if (contact?.phone) contactBadges.push(`<span>📞 ${escapeHTML(contact.phone)}</span>`);
-                if (contact?.email) contactBadges.push(`<span>✉️ ${escapeHTML(contact.email)}</span>`);
+                if (contact?.phone) {
+                    const cleanTel = escapeHTML(contact.phone.replace(/\s+/g, ''));
+                    contactBadges.push(`<a href="tel:${cleanTel}" class="contact-link">📞 ${escapeHTML(contact.phone)}</a>`);
+                }
+                if (contact?.email) {
+                    const safeMail = escapeHTML(contact.email);
+                    contactBadges.push(`<a href="mailto:${safeMail}" class="contact-link">✉️ ${safeMail}</a>`);
+                }
                 const epalContactHtml = contactBadges.length > 0
                     ? `<span class="epal-contact-info">${contactBadges.join('')}</span>`
                     : '';
@@ -539,23 +616,27 @@ function renderGroupedTable(list) {
 
                 items.forEach(item => {
                     const isSelected = item.id === state.selectedTmimaId;
-                    const studentsList = state.studentsBySection.get(item.id) || [];
-                    const stuCount = studentsList.length;
-                    const stoppedCount = studentsList.filter(isStudentStopped).length;
                     const safeId = escapeHTML(item.id);
 
-                    const aaBtn = `<span class="click-pill aa-pill" data-action="teachers" data-id="${safeId}" title="Προβολή αναθέσεων εκπαιδευτικών">${safeId}</span>`;
+                    const aaBtn = `<span class="click-pill aa-pill" data-action="teachers" data-id="${safeId}" title="Προβολή αναθέσεων εκπαιδευτικών (${item.teaCount})">${safeId}</span>`;
 
-                    const stoppedBadge = stoppedCount > 0
-                        ? `<span class="click-pill seats-stop-pill" data-action="students" data-id="${safeId}" title="${stoppedCount} διακοπές μαθητείας">⛔ ${stoppedCount}</span>`
-                        : '';
+                                        const stoppedBadge = item.stoppedCount > 0
+                        ? `<span class="click-pill seats-stop-pill" data-action="students" data-id="${safeId}" title="${item.stoppedCount} διακοπές μαθητείας">⛔ ${item.stoppedCount}</span>`
+                        : `<span class="click-pill seats-stop-pill pill-placeholder">⛔ 0</span>`;
+
+                    const eneegylBadge = item.eneegylCount > 0
+                        ? `<span class="click-pill seats-eneegyl-pill" data-action="students" data-id="${safeId}" title="${item.eneegylCount} μαθητευόμενοι ΕΝΕΕΓΥΛ">🟢 ${item.eneegylCount}</span>`
+                        : `<span class="click-pill seats-eneegyl-pill pill-placeholder">🟢 0</span>`;
 
                     const seatsBtn = `
                         <div class="students-cell-wrap">
-                            <span class="click-pill seats-pill ${stuCount === 0 ? 'seats-warn' : ''}" data-action="students" data-id="${safeId}" title="Σύνολο μαθητευομένων: ${stuCount} (Ενεργοί: ${stuCount - stoppedCount})">${stuCount}</span>
+                            <span class="click-pill seats-pill ${item.stuCount === 0 ? 'seats-warn' : ''}" data-action="students" data-id="${safeId}" title="Σύνολο: ${item.stuCount} (Ενεργοί: ${item.stuCount - item.stoppedCount})">${item.stuCount}</span>
                             ${stoppedBadge}
+                            ${eneegylBadge}
                         </div>
                     `;
+
+
 
                     html += `
                         <tr class="tmima-row child-of-${pdeKey} child-of-${ddeKey} child-of-${epalKey} ${isSelected ? 'active-row' : ''}" data-id="${safeId}">
@@ -577,9 +658,40 @@ function renderGroupedTable(list) {
 
 
 
+
 // ==========================================
 // 7. ΔΙΑΧΕΙΡΙΣΗ ΟΜΑΔΩΝ & MODALS
 // ==========================================
+function toggleEpal(epalKey, rowEl) {
+    const nextState = rowEl.getAttribute('data-collapsed') !== 'true';
+    rowEl.setAttribute('data-collapsed', String(nextState));
+    rowEl.querySelector('.toggle-arrow').textContent = nextState ? '▶' : '▼';
+
+    document.querySelectorAll(`.child-of-${epalKey}`).forEach(el => {
+        el.style.display = nextState ? 'none' : '';
+    });
+}
+
+function toggleDde(ddeKey, rowEl) {
+    const nextState = rowEl.getAttribute('data-collapsed') !== 'true';
+    rowEl.setAttribute('data-collapsed', String(nextState));
+    rowEl.querySelector('.toggle-arrow').textContent = nextState ? '▶' : '▼';
+
+    document.querySelectorAll(`.child-of-${ddeKey}`).forEach(el => {
+        if (nextState) {
+            el.style.display = 'none';
+        } else if (el.classList.contains('group-epal')) {
+            el.style.display = '';
+        } else {
+            const epalClass = Array.from(el.classList).find(c => c.startsWith('child-of-epal-'));
+            const epalKey = epalClass ? epalClass.replace('child-of-', '') : '';
+            const epalRow = document.querySelector(`tr.group-epal[data-epal="${epalKey}"]`);
+            const epalCollapsed = epalRow?.getAttribute('data-collapsed') === 'true';
+            el.style.display = epalCollapsed ? 'none' : '';
+        }
+    });
+}
+
 function togglePde(pdeKey, rowEl) {
     const nextState = rowEl.getAttribute('data-collapsed') !== 'true';
     rowEl.setAttribute('data-collapsed', String(nextState));
@@ -608,26 +720,6 @@ function togglePde(pdeKey, rowEl) {
                 const epalCollapsed = epalRow?.getAttribute('data-collapsed') === 'true';
                 el.style.display = epalCollapsed ? 'none' : '';
             }
-        }
-    });
-}
-
-function toggleDde(ddeKey, rowEl) {
-    const nextState = rowEl.getAttribute('data-collapsed') !== 'true';
-    rowEl.setAttribute('data-collapsed', String(nextState));
-    rowEl.querySelector('.toggle-arrow').textContent = nextState ? '▶' : '▼';
-
-    document.querySelectorAll(`.child-of-${ddeKey}`).forEach(el => {
-        if (nextState) {
-            el.style.display = 'none';
-        } else if (el.classList.contains('group-epal')) {
-            el.style.display = '';
-        } else {
-            const epalClass = Array.from(el.classList).find(c => c.startsWith('child-of-epal-'));
-            const epalKey = epalClass ? epalClass.replace('child-of-', '') : '';
-            const epalRow = document.querySelector(`tr.group-epal[data-epal="${epalKey}"]`);
-            const epalCollapsed = epalRow?.getAttribute('data-collapsed') === 'true';
-            el.style.display = epalCollapsed ? 'none' : '';
         }
     });
 }
@@ -676,8 +768,14 @@ function showTeachers(tmimaId) {
                         const rawAm = cleanKey(t['ΑΜ']);
                         const info = state.teachersInfoByAm.get(normalizeAm(rawAm));
                         const contactParts = [];
-                        if (info?.phone) contactParts.push(`<span>📱 ${escapeHTML(info.phone)}</span>`);
-                        if (info?.email) contactParts.push(`<span>✉️ ${escapeHTML(info.email)}</span>`);
+                        if (info?.phone) {
+                            const cleanTel = escapeHTML(info.phone.replace(/\s+/g, ''));
+                            contactParts.push(`<a href="tel:${cleanTel}" class="contact-link">📱 ${escapeHTML(info.phone)}</a>`);
+                        }
+                        if (info?.email) {
+                            const safeMail = escapeHTML(info.email);
+                            contactParts.push(`<a href="mailto:${safeMail}" class="contact-link">✉️ ${safeMail}</a>`);
+                        }
                         const contactHtml = contactParts.length ? `<div class="teacher-contact">${contactParts.join('')}</div>` : '';
 
                         return `
@@ -727,19 +825,45 @@ function showStudents(tmimaId) {
 
                         const formattedStop = formatDate(rawStop);
                         const isActive = !formattedStop || formattedStop === '-' || formattedStop === '—';
+                        const isEneegyl = cleanKey(s['ΕΝΕΕΓΥΛ']).toUpperCase() === 'ΝΑΙ';
                         const gender = cleanKey(s['ΦΥΛΟ'] || s['Φύλο']) || getColByKeywords(s, ['φυλ']) || '—';
 
+                        const rawPhone = cleanKey(s['ΚΙΝΗΤΟ'] || s['ΤΗΛΕΦΩΝΟ']);
+                        const phoneHtml = rawPhone
+                            ? `<a href="tel:${escapeHTML(rawPhone.replace(/\s+/g, ''))}" class="contact-link">${escapeHTML(rawPhone)}</a>`
+                            : '—';
+
+                        const rawEmail = cleanKey(s['EMAIL']);
+                        const emailHtml = rawEmail
+                            ? `<a href="mailto:${escapeHTML(rawEmail)}" class="contact-link">${escapeHTML(rawEmail)}</a>`
+                            : '—';
+
+                        const rowStyle = isEneegyl ? 'style="background-color: #dcfce7;"' : '';
+                        const firstCellStyle = isEneegyl ? 'style="border-left: 5px solid #16a34a; font-weight: 700; color: #166534;"' : '';
+                        const eneegylTag = isEneegyl
+                            ? `<span class="badge" style="background:#16a34a; color:#fff; margin-left:8px;">ΕΝΕΕΓΥΛ</span>`
+                            : '';
+
                         return `
-                            <tr>
-                                <td>${idx + 1}</td>
-                                <td><strong>${escapeHTML(s['ΕΠΩΝΥΜΟ'])}</strong></td>
-                                <td>${escapeHTML(s['ΟΝΟΜΑ'])}</td>
+                            <tr ${rowStyle}>
+                                <td ${firstCellStyle}>${idx + 1}</td>
+                                <td>
+                                    <button type="button" class="student-link" data-tmima="${escapeHTML(tmimaId)}" data-idx="${idx}">
+                                        ${escapeHTML(s['ΕΠΩΝΥΜΟ'])}
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="student-link" data-tmima="${escapeHTML(tmimaId)}" data-idx="${idx}">
+                                        ${escapeHTML(s['ΟΝΟΜΑ'])}
+                                    </button>
+                                    ${eneegylTag}
+                                </td>
                                 <td>${escapeHTML(gender)}</td>
-                                <td>${escapeHTML(s['ΚΙΝΗΤΟ'] || s['ΤΗΛΕΦΩΝΟ']) || '—'}</td>
-                                <td>${escapeHTML(s['EMAIL']) || '—'}</td>
+                                <td>${phoneHtml}</td>
+                                <td>${emailHtml}</td>
                                 <td>
                                     <span class="badge ${isActive ? 'badge-ok' : 'badge-stop'}" title="${!isActive ? 'Διακοπή: ' + escapeHTML(formattedStop) : 'Ενεργός μαθητευόμενος'}">
-                                        ${isActive ? 'ΝΑΙ' : `ΟΧΙ (${escapeHTML(formattedStop)})`}
+                                        ${isActive ? 'ΝΑΙ' : 'ΟΧΙ (' + escapeHTML(formattedStop) + ')'}
                                     </span>
                                 </td>
                             </tr>
@@ -753,10 +877,92 @@ function showStudents(tmimaId) {
     openModal(`🎓 Μαθητευόμενοι — Τμήμα ${tmimaId} (${students.length})${subtitle}`, bodyHtml, tmimaId);
 }
 
+function showStudentDetails(tmimaId, studentIdx) {
+    const students = state.studentsBySection.get(tmimaId) || [];
+    const student = students[studentIdx];
+    if (!student) return;
 
+    const fullName = `${cleanKey(student['ΕΠΩΝΥΜΟ'])} ${cleanKey(student['ΟΝΟΜΑ'])}`.trim();
+    const stopped = isStudentStopped(student);
 
+    // Κανονικοποίηση κλειδιών (μετατροπή τελικού 'ς' σε 'σ')
+    const cleanFieldKey = (k) => normalizeText(k).replace(/ς/g, 'σ');
 
+    const excludedFields = [
+        'κωδικοσ isced',
+        'παρουσιεσ εργ',
+        'κανονικεσ αδειεσ',
+        'απουσιεσ',
+        'κλειστοσ εργοδοτησ',
+        'παρουσιεσ διδασκ',
+        'δικαιολογημενεσ',
+        'αδικαιολογητεσ',
+        'ημ/νια πιθανησ ολοκληρωσησ',
+        'ημ/νια ολοκληρωσησ μαθηματων',
+        'mis',
+        'αναρρ. σε εργασιμη',
+        'αργια/μη εργασιμη',
+        'τελευταια καταχωρημενη ημ/νια',
+        'υπολοιπο παρουσιων',
+        'πληρωτεο ποσο',
+        'υπολοιπο ποσο',
+        'συνολικο ποσο'
+    ];
 
+    const fieldsHtml = Object.entries(student)
+        .filter(([key]) => {
+            const norm = cleanFieldKey(key);
+            return norm !== '' && !excludedFields.some(ex => norm === ex || norm.includes(ex));
+        })
+        .map(([key, rawVal]) => {
+            const normKey = cleanFieldKey(key);
+            let val = cleanKey(rawVal);
+
+            // 1. Το πεδίο ΑΙΤΗΣΗ μένει αυστηρά αριθμός
+            if (normKey === 'αιτηση' || normKey.includes('αιτηση')) {
+                val = val ? String(Number(val) || val) : '';
+            }
+            // 2. Μετατροπή ημερομηνιών σε ηη/μμ/εεεε
+            else if (val && (/^\d{5}$/.test(val) || /^\d{4}-\d{1,2}-\d{1,2}/.test(val))) {
+                val = formatDate(val);
+            }
+
+            let displayVal = val ? escapeHTML(val) : '—';
+
+            // 3. Ενεργοί σύνδεσμοι (link, τηλέφωνο, email)
+            if (val && normKey.includes('αναλυτικη εικονα')) {
+                const href = /^https?:\/\//i.test(val) ? val : `https://${val}`;
+                displayVal = `<a href="${escapeHTML(href)}" target="_blank" rel="noopener noreferrer" class="contact-link">🔗 Προβολή Αναλυτικής Εικόνας</a>`;
+            } else if (val && (normKey.includes('τηλεφ') || normKey.includes('κινητ'))) {
+                displayVal = `<a href="tel:${escapeHTML(val.replace(/\s+/g, ''))}" class="contact-link">📱 ${escapeHTML(val)}</a>`;
+            } else if (val && normKey.includes('mail')) {
+                displayVal = `<a href="mailto:${escapeHTML(val)}" class="contact-link">✉️ ${escapeHTML(val)}</a>`;
+            }
+
+            return `
+                <div class="detail-box">
+                    <div class="detail-label">${escapeHTML(key)}</div>
+                    <div class="detail-val">${displayVal}</div>
+                </div>
+            `;
+        }).join('');
+
+    const bodyHtml = `
+        <div class="student-card-header">
+            <button type="button" class="btn btn-secondary" id="backToStudentsBtn" data-tmima="${escapeHTML(tmimaId)}">
+                ⬅ Πίσω στους μαθητευόμενους του τμήματος
+            </button>
+            <span class="badge ${stopped ? 'badge-stop' : 'badge-ok'}">
+                ${stopped ? '⛔ Διακοπή Μαθητείας' : '✔ Ενεργός Μαθητευόμενος'}
+            </span>
+        </div>
+        <div class="student-details-grid">
+            ${fieldsHtml}
+        </div>
+    `;
+
+    openModal(`👤 Καρτέλα Μαθητευόμενου — ${fullName}`, bodyHtml, tmimaId);
+}
 
 
 // ==========================================
@@ -773,7 +979,7 @@ document.getElementById('multiFiles').addEventListener('change', async (e) => {
             const buf = await file.arrayBuffer();
             const parsed = await parseXlsxBuffer(buf);
             const fname = normalizeText(file.name);
-            const firstRow = parsed[0] || {};
+            const firstRow = parsed.at(0) || {};
 
             const matchedCfg = FILE_CONFIGS.find(cfg => cfg.match(fname, firstRow));
             if (matchedCfg) {
@@ -824,10 +1030,11 @@ document.getElementById('allSectionsTable').addEventListener('click', (e) => {
 });
 
 document.getElementById('eidFilter').addEventListener('change', applyFilter);
-document.getElementById('searchInput').addEventListener('input', applyFilter);
+document.getElementById('statusFilter').addEventListener('change', applyFilter);
+document.getElementById('searchInput').addEventListener('input', debounce(applyFilter, 150));
 
 document.getElementById('resetFiltersBtn').addEventListener('click', () => {
-    ['pdeFilter', 'ddeFilter', 'epalFilter', 'eidFilter', 'searchInput'].forEach(id => {
+    ['pdeFilter', 'ddeFilter', 'epalFilter', 'eidFilter', 'statusFilter', 'searchInput'].forEach(id => {
         document.getElementById(id).value = '';
     });
     updateDependentDropdowns();
@@ -841,40 +1048,91 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
     }
 
     const headers = ['ΠΔΕ', 'ΔΔΕ', 'ΕΠΑΛ', 'Ειδικότητα', 'Τμήμα', 'Μαθητές', 'Διακοπές', 'Αναθέσεις Εκπ/κών', 'Μάθημα'];
-    const rows = state.currentFiltered.map(s => {
-        const studentsList = state.studentsBySection.get(s.id) || [];
-        const stuCount = studentsList.length;
-        const stoppedCount = studentsList.filter(isStudentStopped).length;
-        const teaCount = state.teachersBySection.get(s.id)?.length || 0;
-        return [s.pde, s.dde, s.epal, s.eid, s.id, stuCount, stoppedCount, teaCount, s.day || '']
-            .map(v => `"${String(v).replace(/"/g, '""')}"`)
-            .join(';');
+    const rows = state.currentFiltered.map(s => [
+        s.pde, s.dde, s.epal, s.eid, s.id, s.stuCount, s.stoppedCount, s.teaCount, s.day || ''
+    ]);
+
+    downloadCsvFile(`Τμηματα_Μαθητειας_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+});
+
+document.getElementById('exportFullCsvBtn').addEventListener('click', () => {
+    if (state.currentFiltered.length === 0) {
+        alert('Δεν υπάρχουν δεδομένα για εξαγωγή.');
+        return;
+    }
+
+    const headers = [
+        'ΠΔΕ', 'ΔΔΕ', 'ΕΠΑΛ', 'Ειδικότητα', 'Τμήμα', 'Ημέρα Διδασκαλίας',
+        'Ρόλος', 'Ονοματεπώνυμο', 'ΑΜ / Φύλο', 'Κλάδος / Κατάσταση', 'Τηλέφωνο', 'Email'
+    ];
+    const rows = [];
+
+    state.currentFiltered.forEach(s => {
+        const teachers = state.teachersBySection.get(s.id) || [];
+        const students = state.studentsBySection.get(s.id) || [];
+
+        teachers.forEach(t => {
+            const rawAm = cleanKey(t['ΑΜ']);
+            const info = state.teachersInfoByAm.get(normalizeAm(rawAm)) || {};
+            rows.push([
+                s.pde, s.dde, s.epal, s.eid, s.id, s.day || '',
+                'Εκπαιδευτικός', t['Εκπαιδευτικός'] || '', rawAm,
+                `${t['Κλάδος'] || ''} (${t['Ιδιότητα'] || ''})`.trim(),
+                info.phone || '', info.email || ''
+            ]);
+        });
+
+        students.forEach(st => {
+            const stopped = isStudentStopped(st);
+            const gender = cleanKey(st['ΦΥΛΟ'] || st['Φύλο']) || getColByKeywords(st, ['φυλ']);
+            rows.push([
+                s.pde, s.dde, s.epal, s.eid, s.id, s.day || '',
+                'Μαθητευόμενος', `${st['ΕΠΩΝΥΜΟ'] || ''} ${st['ΟΝΟΜΑ'] || ''}`.trim(), gender,
+                stopped ? 'Διακοπή' : 'Ενεργός',
+                st['ΚΙΝΗΤΟ'] || st['ΤΗΛΕΦΩΝΟ'] || '', st['EMAIL'] || ''
+            ]);
+        });
+
+        if (teachers.length === 0 && students.length === 0) {
+            rows.push([s.pde, s.dde, s.epal, s.eid, s.id, s.day || '', 'Χωρίς εγγραφές', '', '', '', '', '']);
+        }
     });
 
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Τμηματα_Μαθητειας_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsvFile(`Αναλυτικη_Κατασταση_Μαθητειας_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
 });
 
 document.getElementById('printBtn').addEventListener('click', () => window.print());
 document.getElementById('expandAllBtn').addEventListener('click', () => toggleAllGroups(false));
 document.getElementById('collapseAllBtn').addEventListener('click', () => toggleAllGroups(true));
 document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modalOverlay') closeModal();
+document.getElementById('modalOverlay').addEventListener('click', (e) => {if (e.target.id === 'modalOverlay') closeModal();});
+document.getElementById('modalContent').addEventListener('click', (e) => {
+    const stuBtn = e.target.closest('.student-link');
+    if (stuBtn) {
+        const tmimaId = stuBtn.getAttribute('data-tmima');
+        const idx = Number(stuBtn.getAttribute('data-idx'));
+        showStudentDetails(tmimaId, idx);
+        return;
+    }
+
+    const backBtn = e.target.closest('#backToStudentsBtn');
+    if (backBtn) {
+        showStudents(backBtn.getAttribute('data-tmima'));
+    }
 });
+
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
 });
 
+
+
+
+
+
 // ==========================================
-// 9. ΔΗΜΙΟΥΡΓΙΑ ΕΙΚΟΝΑΣ ΣΤΑΤΙΣΤΙΚΩΝ (.PNG)
+// 9. ΔΗΜΙΟΥΡΓΙΑ ΕΙΚΟΝΑΣ ΣΤΑΤΙΣΤΙΚΩΝ (.PNG - HD 2x)
 // ==========================================
 function openStatsImageModal() {
     const list = state.currentFiltered;
@@ -883,7 +1141,6 @@ function openStatsImageModal() {
         return;
     }
 
-    // 1. Συλλογή & Υπολογισμός όλων των δεδομένων
     const pdeCount = new Set(list.map(x => x.pde)).size;
     const ddeCount = new Set(list.map(x => x.dde)).size;
     const epalCount = new Set(list.map(x => `${x.dde}||${x.epal}`)).size;
@@ -901,7 +1158,7 @@ function openStatsImageModal() {
 
     list.forEach(sec => {
         const stus = state.studentsBySection.get(sec.id) || [];
-        const stopped = stus.filter(isStudentStopped).length;
+        const stopped = sec.stoppedCount;
         const active = stus.length - stopped;
 
         totalStudents += stus.length;
@@ -940,12 +1197,12 @@ function openStatsImageModal() {
         .filter(Boolean);
     const filterSubtitle = activeFilters.length ? activeFilters.join('  •  ') : 'Συνολική Εικόνα (Όλες οι δομές)';
 
-    // 2. Δημιουργία Canvas (1100 x 880)
-    const W = 1100, H = 880;
+    const W = 1100, H = 880, SCALE = 2;
     const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
+    canvas.width = W * SCALE;
+    canvas.height = H * SCALE;
     const ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
 
     ctx.fillStyle = '#f1f5f9';
     ctx.fillRect(0, 0, W, H);
@@ -1002,6 +1259,11 @@ function openStatsImageModal() {
     });
     ctx.textAlign = 'left';
 
+
+
+
+
+
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#cbd5e1';
     ctx.beginPath();
@@ -1028,7 +1290,6 @@ function openStatsImageModal() {
         ctx.fill();
     }
 
-    // 3 Μεσαίες Κάρτες Γραφημάτων (Πλάτος 334px η καθεμία)
     const cardY = 284, cardH = 265, cardW = 334;
     const cardXs = new Array(32, 383, 734);
 
@@ -1041,7 +1302,7 @@ function openStatsImageModal() {
         ctx.stroke();
     });
 
-    // --- Γράφημα 1: Κατανομή ανά Φύλο (Donut) ---
+    // Γράφημα 1: Φύλο
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 15px Segoe UI, sans-serif';
     ctx.fillText('Κατανομή Μαθητευομένων ανά Φύλο', cardXs.at(0) + 18, cardY + 28);
@@ -1090,7 +1351,7 @@ function openStatsImageModal() {
         ctx.textAlign = 'left';
     }
 
-    // --- Γράφημα 2: Τμήματα ανά Ημέρα Διδασκαλίας ---
+    // Γράφημα 2: Ημέρα Διδασκαλίας
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 15px Segoe UI, sans-serif';
     ctx.fillText('Τμήματα ανά Ημέρα Διδασκαλίας', cardXs.at(1) + 18, cardY + 28);
@@ -1118,7 +1379,7 @@ function openStatsImageModal() {
         ctx.fillText(String(count), bx + bw + 8, ry + 15);
     });
 
-    // --- Γράφημα 3: Ενεργοί & Διακοπές ανά ΠΔΕ ---
+    // Γράφημα 3: Top ΠΔΕ
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 15px Segoe UI, sans-serif';
     ctx.fillText('Μαθητές & Διακοπές (Top ΠΔΕ)', cardXs.at(2) + 18, cardY + 28);
@@ -1165,7 +1426,7 @@ function openStatsImageModal() {
     ctx.fillStyle = '#334155';
     ctx.fillText('Διακοπές', cardXs.at(2) + 180, cardY + 251);
 
-    // --- Γράφημα 4: Top 5 Ειδικότητες ---
+    // Γράφημα 4: Top 5 Ειδικότητες
     const botY = 566, botH = 285;
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#cbd5e1';
@@ -1220,6 +1481,30 @@ function openStatsImageModal() {
     });
 }
 
-
 document.getElementById('statsImgBtn')?.addEventListener('click', openStatsImageModal);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
