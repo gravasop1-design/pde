@@ -524,6 +524,13 @@ function renderGroupedTable(list) {
         epalMap.get(item.epal).push(item);
     });
 
+    const formatBadge = (secCount, stuCount, stopCount, eneegylCount) => {
+        const parts = [`Τμήματα: ${secCount}`, `Μαθητές: ${stuCount}`];
+        if (stopCount > 0) parts.push(`⛔ ${stopCount}`);
+        if (eneegylCount > 0) parts.push(`🟢 ${eneegylCount}`);
+        return `<span class="group-badge">${parts.join(' | ')}</span>`;
+    };
+
     let html = `
         <table class="main-sections-table">
             <colgroup>
@@ -548,12 +555,14 @@ function renderGroupedTable(list) {
     pdeGroups.forEach((ddeMap, pdeName) => {
         pdeIdx++;
         const pdeKey = `pde-${pdeIdx}`;
-        let pdeSections = 0, pdeStudents = 0;
+        let pdeSections = 0, pdeStudents = 0, pdeStopped = 0, pdeEneegyl = 0;
 
         ddeMap.forEach(epalMap => {
             epalMap.forEach(items => {
                 pdeSections += items.length;
                 pdeStudents += items.reduce((sum, x) => sum + x.stuCount, 0);
+                pdeStopped += items.reduce((sum, x) => sum + x.stoppedCount, 0);
+                pdeEneegyl += items.reduce((sum, x) => sum + x.eneegylCount, 0);
             });
         });
 
@@ -561,7 +570,7 @@ function renderGroupedTable(list) {
             <tr class="group-pde" data-pde="${pdeKey}" data-collapsed="false">
                 <td colspan="4">
                     <span class="toggle-arrow">▼</span> 🗺️ ${escapeHTML(pdeName)}
-                    <span class="group-badge">Τμήματα: ${pdeSections} | Μαθητές: ${pdeStudents}</span>
+                    ${formatBadge(pdeSections, pdeStudents, pdeStopped, pdeEneegyl)}
                 </td>
             </tr>
         `;
@@ -569,18 +578,20 @@ function renderGroupedTable(list) {
         ddeMap.forEach((epalMap, ddeName) => {
             ddeIdx++;
             const ddeKey = `dde-${ddeIdx}`;
-            let ddeSections = 0, ddeStudents = 0;
+            let ddeSections = 0, ddeStudents = 0, ddeStopped = 0, ddeEneegyl = 0;
 
             epalMap.forEach(items => {
                 ddeSections += items.length;
                 ddeStudents += items.reduce((sum, x) => sum + x.stuCount, 0);
+                ddeStopped += items.reduce((sum, x) => sum + x.stoppedCount, 0);
+                ddeEneegyl += items.reduce((sum, x) => sum + x.eneegylCount, 0);
             });
 
             html += `
                 <tr class="group-dde child-of-${pdeKey}" data-dde="${ddeKey}" data-collapsed="false">
                     <td colspan="4">
                         <span class="toggle-arrow">▼</span> 🏛️ ${escapeHTML(ddeName)}
-                        <span class="group-badge">Τμήματα: ${ddeSections} | Μαθητές: ${ddeStudents}</span>
+                        ${formatBadge(ddeSections, ddeStudents, ddeStopped, ddeEneegyl)}
                     </td>
                 </tr>
             `;
@@ -589,6 +600,8 @@ function renderGroupedTable(list) {
                 epalIdx++;
                 const epalKey = `epal-${epalIdx}`;
                 const epalStudents = items.reduce((sum, x) => sum + x.stuCount, 0);
+                const epalStopped = items.reduce((sum, x) => sum + x.stoppedCount, 0);
+                const epalEneegyl = items.reduce((sum, x) => sum + x.eneegylCount, 0);
 
                 const contact = state.epalContactMap.get(`${ddeName}||${epalName}`);
                 const contactBadges = [];
@@ -609,7 +622,7 @@ function renderGroupedTable(list) {
                         <td colspan="4">
                             <span class="toggle-arrow">▼</span> 🏫 ${escapeHTML(epalName)}
                             ${epalContactHtml}
-                            <span class="group-badge">Τμήματα: ${items.length} | Μαθητές: ${epalStudents}</span>
+                            ${formatBadge(items.length, epalStudents, epalStopped, epalEneegyl)}
                         </td>
                     </tr>
                 `;
@@ -620,7 +633,7 @@ function renderGroupedTable(list) {
 
                     const aaBtn = `<span class="click-pill aa-pill" data-action="teachers" data-id="${safeId}" title="Προβολή αναθέσεων εκπαιδευτικών (${item.teaCount})">${safeId}</span>`;
 
-                                        const stoppedBadge = item.stoppedCount > 0
+                    const stoppedBadge = item.stoppedCount > 0
                         ? `<span class="click-pill seats-stop-pill" data-action="students" data-id="${safeId}" title="${item.stoppedCount} διακοπές μαθητείας">⛔ ${item.stoppedCount}</span>`
                         : `<span class="click-pill seats-stop-pill pill-placeholder">⛔ 0</span>`;
 
@@ -635,8 +648,6 @@ function renderGroupedTable(list) {
                             ${eneegylBadge}
                         </div>
                     `;
-
-
 
                     html += `
                         <tr class="tmima-row child-of-${pdeKey} child-of-${ddeKey} child-of-${epalKey} ${isSelected ? 'active-row' : ''}" data-id="${safeId}">
@@ -838,8 +849,17 @@ function showStudents(tmimaId) {
                             ? `<a href="mailto:${escapeHTML(rawEmail)}" class="contact-link">${escapeHTML(rawEmail)}</a>`
                             : '—';
 
-                        const rowStyle = isEneegyl ? 'style="background-color: #dcfce7;"' : '';
-                        const firstCellStyle = isEneegyl ? 'style="border-left: 5px solid #16a34a; font-weight: 700; color: #166534;"' : '';
+                        // Χρωματισμός γραμμής: Κόκκινο για διακοπή, Πράσινο για ΕΝΕΕΓΥΛ
+                        let rowStyle = '';
+                        let firstCellStyle = '';
+                        if (!isActive) {
+                            rowStyle = 'style="background-color: #fef2f2;"';
+                            firstCellStyle = 'style="border-left: 5px solid #dc2626; font-weight: 700; color: #991b1b;"';
+                        } else if (isEneegyl) {
+                            rowStyle = 'style="background-color: #dcfce7;"';
+                            firstCellStyle = 'style="border-left: 5px solid #16a34a; font-weight: 700; color: #166534;"';
+                        }
+
                         const eneegylTag = isEneegyl
                             ? `<span class="badge" style="background:#16a34a; color:#fff; margin-left:8px;">ΕΝΕΕΓΥΛ</span>`
                             : '';
