@@ -4,89 +4,139 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ενιαία Φόρμα Προβολής Τμημάτων Μαθητείας</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="container">
     <div class="page-header-banner">
-        <h1>📋 Ενιαία Φόρμα Προβολής Τμημάτων Μαθητείας</h1>
-        <p class="subtitle">Κάντε κλικ στο <strong>Τμήμα</strong> για προβολή αναθέσεων εκπαιδευτικών ή στους <strong>Μαθητές</strong> για προβολή μαθητευομένων.</p>
-    </div>
-
-    <div class="single-upload-box">
-        <div class="upload-top-row">
-            <label for="multiFiles" class="upload-main-label">📂 Αρχεία Δεδομένων Excel (Τμήματα, Αναθέσεις, Μαθητευόμενοι, Εκπαιδευτικοί):</label>
-            <input type="file" id="multiFiles" accept=".xlsx" multiple>
-        </div>
-        <div class="upload-statuses">
-            <span id="status1" class="status-pill">1. Τμήματα: ⏳ Αναζήτηση...</span>
-            <span id="status2" class="status-pill">2. Αναθέσεις: ⏳ Αναζήτηση...</span>
-            <span id="status3" class="status-pill">3. Μαθητευόμενοι: ⏳ Αναζήτηση...</span>
-            <span id="status4" class="status-pill">4. Εκπαιδευτικοί: ⏳ Αναζήτηση...</span>
+        <div class="header-top-flex">
+            <div>
+                <h1>📋 Ενιαία Φόρμα Προβολής Τμημάτων Μαθητείας</h1>
+                <p class="subtitle">Κάντε κλικ στο <strong>Τμήμα</strong> για προβολή αναθέσεων εκπαιδευτικών ή στους <strong>Μαθητές</strong> για προβολή μαθητευομένων.</p>
+            </div>
+            <div class="author-badge">© 2026 Ραβασόπουλος Γιώργος - Πάτρα</div>
         </div>
     </div>
 
-    <div id="statsBar" class="stats-bar" style="display:none;">
-        <div class="stat-item"><span class="stat-label">ΠΔΕ</span><span id="statPde" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">ΔΔΕ</span><span id="statDde" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">ΕΠΑΛ</span><span id="statEpal" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">Ειδικότητες</span><span id="statEid" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">Τμήματα</span><span id="statTmimata" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">Εκπαιδευτικοί</span><span id="statTeachers" class="stat-num">0</span></div>
-        <div class="stat-item"><span class="stat-label">Μαθητευόμενοι</span><span id="statStudents" class="stat-num">0</span></div>
+    <!-- Μπάρα 4 Καρτελών -->
+    <div class="tabs-nav">
+        <button type="button" class="tab-btn active" data-tab="tab-tmimata">📋 Τμήματα</button>
+        <button type="button" class="tab-btn" data-tab="tab-settings">⚙️ Ρυθμίσεις</button>
+        <button type="button" class="tab-btn" data-tab="tab-help">📖 Οδηγίες</button>
+        <button type="button" class="tab-btn" data-tab="tab-about">ℹ️ Περί</button>
     </div>
 
-    <div class="controls">
-        <div class="filter-item">
-            <label for="pdeFilter">ΠΔΕ:</label>
-            <select id="pdeFilter"><option value="">-- Όλες οι ΠΔΕ --</option></select>
-        </div>
-        <div class="filter-item">
-            <label for="ddeFilter">ΔΔΕ:</label>
-            <select id="ddeFilter"><option value="">-- Όλες οι ΔΔΕ --</option></select>
-        </div>
-        <div class="filter-item">
-            <label for="epalFilter">ΕΠΑΛ:</label>
-            <select id="epalFilter"><option value="">-- Όλα τα ΕΠΑΛ --</option></select>
-        </div>
-        <div class="filter-item">
-            <label for="eidFilter">Ειδικότητα:</label>
-            <select id="eidFilter"><option value="">-- Όλες οι Ειδικότητες --</option></select>
-        </div>
-                <div class="filter-item">
-            <label for="statusFilter">Κατάσταση:</label>
-            <select id="statusFilter">
-                <option value="">-- Όλα τα τμήματα --</option>
-                <option value="has_eneegyl">🟢 Με μαθητευόμενους ΕΝΕΕΓΥΛ</option>
-                <option value="has_stopped">⛔ Με διακοπές μαθητείας</option>
-                <option value="eneegyl_and_stopped">🟢⛔ ΕΝΕΕΓΥΛ &amp; Διακοπές μαζί</option>
-                <option value="zero_students">⚠️ Χωρίς μαθητές (0)</option>
-                <option value="no_teachers">👨‍🏫 Χωρίς αναθέσεις εκπ/κών</option>
-            </select>
+    <!-- ΚΑΡΤΕΛΑ 1: ΤΜΗΜΑΤΑ -->
+    <div id="tab-tmimata" class="tab-pane active">
+        <div id="statsBar" class="stats-bar" style="display:none;">
+            <div class="stat-item"><span class="stat-label">ΠΔΕ</span><span id="statPde" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">ΔΔΕ</span><span id="statDde" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">ΕΠΑΛ</span><span id="statEpal" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">Ειδικότητες</span><span id="statEid" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">Τμήματα</span><span id="statTmimata" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">Εκπαιδευτικοί</span><span id="statTeachers" class="stat-num">0</span></div>
+            <div class="stat-item"><span class="stat-label">Μαθητευόμενοι</span><span id="statStudents" class="stat-num">0</span></div>
         </div>
 
-        <div class="filter-item">
-            <label for="searchInput">Αναζήτηση:</label>
-            <input type="text" id="searchInput" placeholder="Τμήμα, ΕΠΑΛ, Εκπαιδευτικός, Μαθητής, ΑΜ...">
-        </div>
-        <div class="action-buttons">
-            <button type="button" id="resetFiltersBtn" class="btn btn-secondary">✖ Καθαρισμός</button>
-            <button type="button" id="exportCsvBtn" class="btn btn-success">📥 CSV Τμημάτων</button>
-            <button type="button" id="exportFullCsvBtn" class="btn btn-success">📋 Αναλυτικό CSV</button>
-            <button type="button" id="printBtn" class="btn btn-primary">🖨 Εκτύπωση / PDF</button>
-            <button type="button" id="statsImgBtn" class="btn btn-info">📊 Εικόνα Στατιστικών</button>
-        </div>
-    </div>
-
-    <div id="allSectionsCard" class="card" style="display:none;">
-        <div class="card-header-flex">
-            <h2>1. Κατάσταση Τμημάτων ανά ΠΔΕ, ΔΔΕ &amp; ΕΠΑΛ</h2>
-            <div class="tree-controls">
-                <button type="button" id="expandAllBtn" class="btn-mini">▼ Ανάπτυξη Όλων</button>
-                <button type="button" id="collapseAllBtn" class="btn-mini">▶ Σύμπτυξη Όλων</button>
+        <div class="controls">
+            <div class="filter-item">
+                <label for="pdeFilter">ΠΔΕ:</label>
+                <select id="pdeFilter"><option value="">-- Όλες οι ΠΔΕ --</option></select>
+            </div>
+            <div class="filter-item">
+                <label for="ddeFilter">ΔΔΕ:</label>
+                <select id="ddeFilter"><option value="">-- Όλες οι ΔΔΕ --</option></select>
+            </div>
+            <div class="filter-item">
+                <label for="epalFilter">ΕΠΑΛ:</label>
+                <select id="epalFilter"><option value="">-- Όλα τα ΕΠΑΛ --</option></select>
+            </div>
+            <div class="filter-item">
+                <label for="eidFilter">Ειδικότητα:</label>
+                <select id="eidFilter"><option value="">-- Όλες οι Ειδικότητες --</option></select>
+            </div>
+            <div class="filter-item">
+                <label for="statusFilter">Κατάσταση:</label>
+                <select id="statusFilter">
+                    <option value="">-- Όλα τα τμήματα --</option>
+                    <option value="has_eneegyl">🟢 ΕΝΕΕΓΥΛ</option>
+                    <option value="has_stopped">⛔ Διακοπές</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="searchInput">Αναζήτηση:</label>
+                <input type="text" id="searchInput" placeholder="Τμήμα, ΕΠΑΛ, Εκπαιδευτικός, Μαθητής, ΑΜ...">
+            </div>
+            <div class="action-buttons">
+                <button type="button" id="resetFiltersBtn" class="btn btn-secondary">✖ Καθαρισμός</button>
+                <button type="button" id="exportCsvBtn" class="btn btn-success">📥 CSV Τμημάτων</button>
+                <button type="button" id="exportFullCsvBtn" class="btn btn-success">📋 Αναλυτικό CSV</button>
+                <button type="button" id="printBtn" class="btn btn-primary">🖨 Εκτύπωση / PDF</button>
+                <button type="button" id="statsImgBtn" class="btn btn-info">📊 Εικόνα Στατιστικών</button>
             </div>
         </div>
-        <div id="allSectionsTable" class="table-wrap"></div>
+
+        <div id="allSectionsCard" class="card" style="display:none;">
+            <div class="card-header-flex">
+                <h2>1. Κατάσταση Τμημάτων ανά ΠΔΕ, ΔΔΕ &amp; ΕΠΑΛ</h2>
+                <div class="tree-controls">
+                    <button type="button" id="expandAllBtn" class="btn-mini">▼ Ανάπτυξη Όλων</button>
+                    <button type="button" id="collapseAllBtn" class="btn-mini">▶ Σύμπτυξη Όλων</button>
+                </div>
+            </div>
+            <div id="allSectionsTable" class="table-wrap"></div>
+        </div>
+    </div>
+
+    <!-- ΚΑΡΤΕΛΑ 2: ΡΥΘΜΙΣΕΙΣ -->
+    <div id="tab-settings" class="tab-pane">
+        <div class="card">
+            <div class="card-header-flex">
+                <h2>⚙️ Διαχείριση Αρχείων Excel &amp; Ρυθμίσεις</h2>
+            </div>
+            <div class="single-upload-box">
+                <div class="upload-top-row">
+                    <label for="multiFiles" class="upload-main-label">📂 Επιλογή / Ενημέρωση Αρχείων Excel (Τμήματα, Αναθέσεις, Μαθητευόμενοι, Εκπαιδευτικοί):</label>
+                    <input type="file" id="multiFiles" accept=".xlsx" multiple>
+                </div>
+                <div class="upload-statuses">
+                    <span id="status1" class="status-pill">1. Τμήματα: ⏳ Αναζήτηση...</span>
+                    <span id="status2" class="status-pill">2. Αναθέσεις: ⏳ Αναζήτηση...</span>
+                    <span id="status3" class="status-pill">3. Μαθητευόμενοι: ⏳ Αναζήτηση...</span>
+                    <span id="status4" class="status-pill">4. Εκπαιδευτικοί: ⏳ Αναζήτηση...</span>
+                </div>
+            </div>
+            <p class="settings-hint">💡 <em>Επιλέξτε τα 4 αρχεία Excel (.xlsx) από τον φάκελό σας για να ενημερωθούν τα δεδομένα.</em></p>
+        </div>
+    </div>
+
+    <!-- ΚΑΡΤΕΛΑ 3: ΟΔΗΓΙΕΣ -->
+    <div id="tab-help" class="tab-pane">
+        <div class="card">
+            <div class="card-header-flex">
+                <h2>📖 Οδηγίες Χρήσης Εφαρμογής</h2>
+            </div>
+            <ul class="help-list">
+                <li><strong>Προβολή Αναθέσεων Εκπαιδευτικών:</strong> Κάντε κλικ πάνω στον <strong>κωδικό του Τμήματος</strong> για να δείτε τους εκπαιδευτικούς, τις ώρες και τα στοιχεία επικοινωνίας τους.</li>
+                <li><strong>Προβολή Μαθητευομένων:</strong> Κάντε κλικ στον <strong>αριθμό μαθητών</strong> (πράσινο κουμπί) για να ανοίξει η λίστα μαθητών. Με <span class="badge badge-ok">πράσινο</span> σημειώνονται οι μαθητές ΕΝΕΕΓΥΛ και με <span class="badge badge-stop">κόκκινο</span> οι διακοπές.</li>
+                <li><strong>Αναλυτική Καρτέλα Μαθητή:</strong> Μέσα στη λίστα μαθητών, πατήστε πάνω στο <strong>Επώνυμο ή το Όνομα</strong> ενός μαθητή για να ανοίξετε την πλήρη καρτέλα του.</li>
+                <li><strong>Έξυπνη Αναζήτηση:</strong> Στο πεδίο <em>Αναζήτηση</em> μπορείτε να πληκτρολογήσετε ΕΠΑΛ, Ειδικότητα, Αριθμό Τμήματος, καθώς και Ονοματεπώνυμο ή ΑΜ εκπαιδευτικού/μαθητή.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ΚΑΡΤΕΛΑ 4: ΠΕΡΙ -->
+    <div id="tab-about" class="tab-pane">
+        <div class="card about-card">
+            <div class="card-header-flex">
+                <h2>ℹ️ Σχετικά με την Εφαρμογή</h2>
+            </div>
+            <p><strong>Ενιαία Φόρμα Προβολής Τμημάτων Μαθητείας ΕΠΑΛ</strong></p>
+            <p>Εφαρμογή συγκεντρωτικής απεικόνισης, αναζήτησης και στατιστικής ανάλυσης τμημάτων, αναθέσεων εκπαιδευτικών και μαθητευομένων Μεταλυκειακού Έτους – Τάξης Μαθητείας.</p>
+            <div class="about-author-box">
+                <strong>Σχεδιασμός &amp; Ανάπτυξη:</strong> © 2026 Ραβασόπουλος Γιώργος - Πάτρα
+            </div>
+        </div>
     </div>
 </div>
 
@@ -100,9 +150,6 @@
     </div>
 </div>
 
-<script src="app.js?v=5"></script>
-
+<script src="app.js?v=12"></script>
 </body>
 </html>
-
-

@@ -1,3 +1,34 @@
+// ==========================================
+// 0. ΕΛΕΓΧΟΣ ΗΜΕΡΟΜΗΝΙΑΣ ΛΗΞΗΣ ΕΦΑΡΜΟΓΗΣ
+// ==========================================
+(function checkExpiration() {
+    const EXPIRATION_DATE = '2027-10-30'; // <-- Βάλε εδώ την ημερομηνία λήξης (ΕΕΕΕ-ΜΜ-ΗΗ)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const limit = new Date(EXPIRATION_DATE + 'T23:59:59');
+
+    if (today > limit) {
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:center; min-height:90vh; font-family:'Segoe UI',sans-serif;">
+                    <div style="background:#fff; border:1px solid #cbd5e1; border-top:6px solid #dc2626; border-radius:12px; padding:32px 40px; max-width:480px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+                        <h2 style="color:#dc2626; margin-top:0;">⛔ Η περίοδος χρήσης έληξε</h2>
+                        <p style="color:#334155; font-size:1rem; line-height:1.5;">
+                            Η πρόσβαση στην εφαρμογή ολοκληρώθηκε στις <strong>${EXPIRATION_DATE.split('-').reverse().join('/')}</strong>.
+                        </p>
+                        <p style="color:#64748b; font-size:0.88rem; margin-bottom:0;">
+                            Επικοινωνήστε με τον διαχειριστή: <strong>Ραβασόπουλος Γιώργος</strong>
+                        </p>
+                    </div>
+                </div>
+            `;
+        });
+        throw new Error('Application expired'); // Σταματάει αμέσως την εκτέλεση του υπόλοιπου κώδικα
+    }
+})();
+
+
+
 
 // ==========================================
 // 1. ΚΕΝΤΡΙΚΗ ΚΑΤΑΣΤΑΣΗ (STATE) & ΡΥΘΜΙΣΕΙΣ
@@ -30,6 +61,25 @@ const normalizeText = (str) =>
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
+
+function getPdeShortCode(pdeName) {
+    const norm = normalizeText(pdeName);
+    if (norm.includes('ανατ') || norm.includes('θρακ')) return 'ΑΜ';
+    if (norm.includes('κεντρ') && norm.includes('μακεδ')) return 'ΚΜ';
+    if (norm.includes('δυτ') && norm.includes('μακεδ')) return 'ΔΜ';
+    if (norm.includes('ηπειρ')) return 'ΗΠ';
+    if (norm.includes('θεσσαλ')) return 'ΘΕ';
+    if (norm.includes('στερε')) return 'ΣΕ';
+    if (norm.includes('δυτ') && norm.includes('ελλαδ')) return 'ΔΕ';
+    if (norm.includes('αττικ')) return 'ΑΤ';
+    if (norm.includes('πελοπον')) return 'ΠΕ';
+    if (norm.includes('κρητ')) return 'ΚΡ';
+    if (norm.includes('ιονι')) return 'ΙΟ';
+    if (norm.includes('βορει') && norm.includes('αιγαι')) return 'ΒΑ';
+    if (norm.includes('νοτι') && norm.includes('αιγαι')) return 'ΝΑ';
+    return cleanKey(pdeName).slice(0, 4);
+}
+
 
 const normalizeAm = (val) => cleanKey(val).replace(/^0+/, '');
 
@@ -252,6 +302,15 @@ async function parseXlsxBuffer(buf) {
 // 4. ΦΟΡΤΩΣΗ & ΕΠΕΞΕΡΓΑΣΙΑ ΔΕΔΟΜΕΝΩΝ
 // ==========================================
 async function autoLoadExcelFiles() {
+    // Αν ανοίγει τοπικά (file://), ο browser μπλοκάρει το fetch λόγω CORS:
+    // Αποφεύγουμε τα σφάλματα στην κονσόλα και ανοίγουμε κατευθείαν τις Ρυθμίσεις.
+    if (window.location.protocol === 'file:') {
+        FILE_CONFIGS.forEach(cfg => updateFileStatus(cfg.index, cfg.label, 0, false));
+        document.querySelector('.tab-btn[data-tab="tab-settings"]')?.click();
+        rebuildData();
+        return;
+    }
+
     for (const cfg of FILE_CONFIGS) {
         try {
             const res = await fetch(`${encodeURI(cfg.url)}?t=${Date.now()}`);
@@ -451,10 +510,7 @@ function applyFilter() {
 
         if (statusVal === 'has_eneegyl' && s.eneegylCount === 0) return false;
         if (statusVal === 'has_stopped' && s.stoppedCount === 0) return false;
-        if (statusVal === 'eneegyl_and_stopped' && (s.eneegylCount === 0 || s.stoppedCount === 0)) return false;
-        if (statusVal === 'zero_students' && s.stuCount !== 0) return false;
-        if (statusVal === 'no_teachers' && s.teaCount !== 0) return false;
-
+        
         if (searchVal && !s.searchIndex.includes(searchVal)) return false;
         return true;
     });
@@ -526,8 +582,9 @@ function renderGroupedTable(list) {
 
     const formatBadge = (secCount, stuCount, stopCount, eneegylCount) => {
         const parts = [`Τμήματα: ${secCount}`, `Μαθητές: ${stuCount}`];
-        if (stopCount > 0) parts.push(`⛔ ${stopCount}`);
-        if (eneegylCount > 0) parts.push(`🟢 ${eneegylCount}`);
+        if (stopCount > 0 && document.getElementById('statusFilter').value !== 'has_eneegyl') parts.push(`⛔ ${stopCount}`);
+        if (eneegylCount > 0 && document.getElementById('statusFilter').value !== 'has_stopped') parts.push(`🟢 ${eneegylCount}`);
+
         return `<span class="group-badge">${parts.join(' | ')}</span>`;
     };
 
@@ -1167,22 +1224,28 @@ function openStatsImageModal() {
     const tmimataCount = list.length;
 
     const uniqueTeachers = new Set();
-    let totalStudents = 0;
-    let stoppedStudents = 0;
-    let menCount = 0;
-    let womenCount = 0;
+    let totalStudents = 0, stoppedStudents = 0, eneegylStudents = 0;
+    let menCount = 0, womenCount = 0;
+    let totalApprovedSeats = 0, totalHours = 0, lowSectionsCount = 0;
 
     const eidMap = new Map();
     const dayMap = new Map();
     const pdeStatsMap = new Map();
+    const kladosMap = new Map();
 
     list.forEach(sec => {
         const stus = state.studentsBySection.get(sec.id) || [];
+        const teachers = state.teachersBySection.get(sec.id) || [];
         const stopped = sec.stoppedCount;
         const active = stus.length - stopped;
 
         totalStudents += stus.length;
         stoppedStudents += stopped;
+        eneegylStudents += sec.eneegylCount;
+        if (active < 5) lowSectionsCount++;
+
+        const approvedNum = Number(String(sec.egkrisi || '').replace(/\D+/g, ''));
+        if (approvedNum > 0) totalApprovedSeats += approvedNum;
 
         stus.forEach(s => {
             const g = normalizeText(cleanKey(s['ΦΥΛΟ'] || s['Φύλο']) || getColByKeywords(s, ['φυλ']));
@@ -1201,23 +1264,34 @@ function openStatsImageModal() {
         pdeObj.total += stus.length;
         pdeStatsMap.set(sec.pde, pdeObj);
 
-        (state.teachersBySection.get(sec.id) || []).forEach(t => {
+        teachers.forEach(t => {
             const key = normalizeAm(t['ΑΜ']) || normalizeText(t['Εκπαιδευτικός']);
             if (key) uniqueTeachers.add(key);
+
+            const klados = cleanKey(t['Κλάδος']) || 'Λοιποί';
+            kladosMap.set(klados, (kladosMap.get(klados) || 0) + 1);
+
+            const hrs = Number(String(t['Ώρες'] || '').replace(',', '.'));
+            if (!isNaN(hrs) && hrs > 0) totalHours += hrs;
         });
     });
 
     const activeStudents = totalStudents - stoppedStudents;
+    const avgStudents = tmimataCount > 0 ? (activeStudents / tmimataCount).toFixed(1) : '0';
+    const avgHours = tmimataCount > 0 ? (totalHours / tmimataCount).toFixed(1) : '0';
+    const fillPct = totalApprovedSeats > 0 ? Math.min(100, Math.round((totalStudents / totalApprovedSeats) * 100)) : 0;
+
     const topEids = Array.from(eidMap.entries()).sort((a, b) => b.at(1) - a.at(1)).slice(0, 5);
     const topDays = Array.from(dayMap.entries()).sort((a, b) => b.at(1) - a.at(1)).slice(0, 5);
     const topPdes = Array.from(pdeStatsMap.entries()).sort((a, b) => b.at(1).total - a.at(1).total).slice(0, 5);
+    const topKladoi = Array.from(kladosMap.entries()).sort((a, b) => b.at(1) - a.at(1)).slice(0, 5);
 
     const activeFilters = ['pdeFilter', 'ddeFilter', 'epalFilter', 'eidFilter']
         .map(id => document.getElementById(id).value)
         .filter(Boolean);
     const filterSubtitle = activeFilters.length ? activeFilters.join('  •  ') : 'Συνολική Εικόνα (Όλες οι δομές)';
 
-    const W = 1100, H = 880, SCALE = 2;
+    const W = 1100, H = 940, SCALE = 2;
     const canvas = document.createElement('canvas');
     canvas.width = W * SCALE;
     canvas.height = H * SCALE;
@@ -1231,51 +1305,56 @@ function openStatsImageModal() {
     grad.addColorStop(0, '#1e3a8a');
     grad.addColorStop(1, '#2563eb');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, 92);
+    ctx.fillRect(0, 0, W, 86);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 25px Segoe UI, sans-serif';
-    ctx.fillText('Αναλυτικό Ταμπλό Μαθητείας ΕΠΑΛ', 32, 40);
+    ctx.font = 'bold 23px Segoe UI, sans-serif';
+    ctx.fillText('Αναλυτικό Ταμπλό Μαθητείας ΕΠΑΛ', 30, 38);
 
     ctx.fillStyle = '#dbeafe';
-    ctx.font = '15px Segoe UI, sans-serif';
-    ctx.fillText(filterSubtitle, 32, 68);
+    ctx.font = '14px Segoe UI, sans-serif';
+    ctx.fillText(filterSubtitle, 30, 64);
 
     ctx.textAlign = 'right';
-    ctx.fillText(`Ημερομηνία: ${new Date().toLocaleDateString('el-GR')}`, W - 32, 40);
+    ctx.fillText(`Ημερομηνία: ${new Date().toLocaleDateString('el-GR')}`, W - 30, 38);
+    ctx.fillStyle = '#bfdbfe';
+    ctx.font = '12px Segoe UI, sans-serif';
+    ctx.fillText('© 2026 Ραβασόπουλος Γιώργος - Πάτρα', W - 30, 64);
     ctx.textAlign = 'left';
 
     const kpis = [
-        { label: 'ΠΔΕ', val: pdeCount },
-        { label: 'ΔΔΕ', val: ddeCount },
-        { label: 'ΕΠΑΛ', val: epalCount },
-        { label: 'ΤΜΗΜΑΤΑ', val: tmimataCount },
-        { label: 'ΕΚΠΑΙΔΕΥΤΙΚΟΙ', val: uniqueTeachers.size },
-        { label: 'ΜΑΘΗΤΕΥΟΜΕΝΟΙ', val: totalStudents }
+        { label: 'ΠΔΕ', val: pdeCount, color: '#1e40af' },
+        { label: 'ΔΔΕ', val: ddeCount, color: '#1e40af' },
+        { label: 'ΕΠΑΛ', val: epalCount, color: '#1e40af' },
+        { label: 'ΤΜΗΜΑΤΑ', val: tmimataCount, color: '#1e40af' },
+        { label: 'ΕΚΠ/ΚΟΙ', val: uniqueTeachers.size, color: '#0284c7' },
+        { label: 'ΜΑΘΗΤΕΣ', val: totalStudents, color: '#16a34a' },
+        { label: 'ΕΝΕΕΓΥΛ', val: eneegylStudents, color: '#15803d' },
+        { label: 'ΔΙΑΚΟΠΕΣ', val: stoppedStudents, color: '#dc2626' }
     ];
 
     kpis.forEach((k, i) => {
-        const x = 32 + i * 174;
-        const y = 110;
+        const x = 30 + i * 131;
+        const y = 102;
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#cbd5e1';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(x, y, 162, 78, 8);
+        ctx.roundRect(x, y, 122, 68, 8);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#1e40af';
-        ctx.fillRect(x, y + 74, 162, 4);
+        ctx.fillStyle = k.color;
+        ctx.fillRect(x, y + 64, 122, 4);
 
         ctx.fillStyle = '#64748b';
-        ctx.font = 'bold 11px Segoe UI, sans-serif';
+        ctx.font = 'bold 10px Segoe UI, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(k.label, x + 81, y + 26);
+        ctx.fillText(k.label, x + 61, y + 23);
 
         ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 25px Segoe UI, sans-serif';
-        ctx.fillText(String(k.val), x + 81, y + 58);
+        ctx.font = 'bold 22px Segoe UI, sans-serif';
+        ctx.fillText(String(k.val), x + 61, y + 51);
     });
     ctx.textAlign = 'left';
 
@@ -1284,204 +1363,281 @@ function openStatsImageModal() {
 
 
 
+
+    const halfW = (W - 76) / 2;
+    const barBoxY = 184, barBoxH = 62;
+
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#cbd5e1';
     ctx.beginPath();
-    ctx.roundRect(32, 202, W - 64, 66, 8);
+    ctx.roundRect(30, barBoxY, halfW, barBoxH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    const actPct = totalStudents ? Math.round((activeStudents / totalStudents) * 100) : 0;
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 12px Segoe UI, sans-serif';
+    ctx.fillText(`Κατάσταση:  🟢 Ενεργοί ${activeStudents} (${actPct}%)   🔴 Διακοπές ${stoppedStudents} (${100 - actPct}%)`, 44, barBoxY + 21);
+
+    ctx.fillStyle = '#fca5a5';
+    ctx.beginPath();
+    ctx.roundRect(44, barBoxY + 32, halfW - 28, 16, 4);
+    ctx.fill();
+    if (totalStudents > 0 && activeStudents > 0) {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.roundRect(44, barBoxY + 32, (halfW - 28) * (activeStudents / totalStudents), 16, 4);
+        ctx.fill();
+    }
+
+    const rightBarX = 30 + halfW + 16;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.roundRect(rightBarX, barBoxY, halfW, barBoxH, 8);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 14px Segoe UI, sans-serif';
-    ctx.fillText(`Κατάσταση Μαθητευομένων:   🟢 Ενεργοί: ${activeStudents} (${totalStudents ? Math.round((activeStudents / totalStudents) * 100) : 0}%)     🔴 Διακοπές: ${stoppedStudents} (${totalStudents ? Math.round((stoppedStudents / totalStudents) * 100) : 0}%)`, 48, 224);
+    ctx.font = 'bold 12px Segoe UI, sans-serif';
+    const seatTxt = totalApprovedSeats > 0
+        ? `Πλήρωση Εγκεκριμένων Θέσεων:  ${totalStudents} / ${totalApprovedSeats} (${fillPct}%)`
+        : `Πλήρωση Θέσεων:  Δεν υπάρχουν στοιχεία έγκρισης`;
+    ctx.fillText(seatTxt, rightBarX + 14, barBoxY + 21);
 
-    const barX = 48, barY = 236, barW = W - 96, barH = 18;
-    const activeRatio = totalStudents > 0 ? activeStudents / totalStudents : 1;
-
-    ctx.fillStyle = '#fca5a5';
+    ctx.fillStyle = '#e2e8f0';
     ctx.beginPath();
-    ctx.roundRect(barX, barY, barW, barH, 5);
+    ctx.roundRect(rightBarX + 14, barBoxY + 32, halfW - 28, 16, 4);
     ctx.fill();
-
-    if (activeRatio > 0) {
-        ctx.fillStyle = '#16a34a';
+    if (totalApprovedSeats > 0 && fillPct > 0) {
+        ctx.fillStyle = '#2563eb';
         ctx.beginPath();
-        ctx.roundRect(barX, barY, barW * activeRatio, barH, 5);
+        ctx.roundRect(rightBarX + 14, barBoxY + 32, (halfW - 28) * (fillPct / 100), 16, 4);
         ctx.fill();
     }
 
-    const cardY = 284, cardH = 265, cardW = 334;
-    const cardXs = new Array(32, 383, 734);
+    const cardW = 336, cardH = 315;
+    const colXs = new Array(30, 382, 734);
+    const rowYs = new Array(262, 595);
 
-    cardXs.forEach(cx => {
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.beginPath();
-        ctx.roundRect(cx, cardY, cardW, cardH, 10);
-        ctx.fill();
-        ctx.stroke();
+    rowYs.forEach(ry => {
+        colXs.forEach(cx => {
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.beginPath();
+            ctx.roundRect(cx, ry, cardW, cardH, 10);
+            ctx.fill();
+            ctx.stroke();
+        });
     });
 
-    // Γράφημα 1: Φύλο
+    // ΚΑΡΤΑ 1: Φύλο
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 15px Segoe UI, sans-serif';
-    ctx.fillText('Κατανομή Μαθητευομένων ανά Φύλο', cardXs.at(0) + 18, cardY + 28);
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('1. Κατανομή ανά Φύλο', colXs.at(0) + 16, rowYs.at(0) + 26);
 
     const genderTotal = menCount + womenCount;
-    const centerX = cardXs.at(0) + cardW / 2;
-    const centerY = cardY + 132;
-    const radius = 64;
-
+    const cX = colXs.at(0) + cardW / 2, cY = rowYs.at(0) + 150, rad = 68;
     if (genderTotal > 0) {
-        const menAngle = (menCount / genderTotal) * Math.PI * 2;
+        const menAng = (menCount / genderTotal) * Math.PI * 2;
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + menAngle);
+        ctx.arc(cX, cY, rad, -Math.PI / 2, -Math.PI / 2 + menAng);
         ctx.lineWidth = 24;
         ctx.strokeStyle = '#2563eb';
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, -Math.PI / 2 + menAngle, -Math.PI / 2 + Math.PI * 2);
+        ctx.arc(cX, cY, rad, -Math.PI / 2 + menAng, -Math.PI / 2 + Math.PI * 2);
         ctx.lineWidth = 24;
         ctx.strokeStyle = '#0d9488';
         ctx.stroke();
 
-        const menPct = Math.round((menCount / genderTotal) * 100);
-        const womenPct = 100 - menPct;
-
+        const mPct = Math.round((menCount / genderTotal) * 100);
         ctx.fillStyle = '#2563eb';
         ctx.beginPath();
-        ctx.arc(cardXs.at(0) + 55, cardY + 228, 6, 0, Math.PI * 2);
+        ctx.arc(colXs.at(0) + 45, rowYs.at(0) + 268, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 13px Segoe UI, sans-serif';
-        ctx.fillText(`Άνδρες: ${menPct}% (${menCount})`, cardXs.at(0) + 67, cardY + 233);
+        ctx.font = 'bold 12px Segoe UI, sans-serif';
+        ctx.fillText(`Άνδρες: ${mPct}% (${menCount})`, colXs.at(0) + 57, rowYs.at(0) + 272);
 
         ctx.fillStyle = '#0d9488';
         ctx.beginPath();
-        ctx.arc(cardXs.at(0) + 195, cardY + 228, 6, 0, Math.PI * 2);
+        ctx.arc(colXs.at(0) + 190, rowYs.at(0) + 268, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#1e293b';
-        ctx.fillText(`Γυναίκες: ${womenPct}% (${womenCount})`, cardXs.at(0) + 207, cardY + 233);
-    } else {
-        ctx.fillStyle = '#64748b';
-        ctx.font = '13px Segoe UI, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Δεν υπάρχουν στοιχεία φύλου', centerX, centerY);
-        ctx.textAlign = 'left';
+        ctx.fillText(`Γυναίκες: ${100 - mPct}% (${womenCount})`, colXs.at(0) + 202, rowYs.at(0) + 272);
     }
 
-    // Γράφημα 2: Ημέρα Διδασκαλίας
+    // ΚΑΡΤΑ 2: Ημέρα Διδασκαλίας
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 15px Segoe UI, sans-serif';
-    ctx.fillText('Τμήματα ανά Ημέρα Διδασκαλίας', cardXs.at(1) + 18, cardY + 28);
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('2. Τμήματα ανά Ημέρα Διδασκαλίας', colXs.at(1) + 16, rowYs.at(0) + 26);
 
-    const maxDayVal = topDays.length ? topDays.at(0).at(1) : 1;
-    topDays.forEach(([day, count], i) => {
-        const ry = cardY + 58 + i * 38;
+    const maxDay = topDays.length ? topDays.at(0).at(1) : 1;
+    topDays.forEach(([day, cnt], i) => {
+        const y = rowYs.at(0) + 58 + i * 46;
         ctx.fillStyle = '#334155';
-        ctx.font = '13px Segoe UI, sans-serif';
-        ctx.fillText(day.slice(0, 13), cardXs.at(1) + 18, ry + 15);
+        ctx.font = '12px Segoe UI, sans-serif';
+        ctx.fillText(day.slice(0, 12), colXs.at(1) + 16, y + 14);
 
-        const bx = cardXs.at(1) + 115, bw = 165;
+        const bx = colXs.at(1) + 108, bw = 175;
         ctx.fillStyle = '#e2e8f0';
         ctx.beginPath();
-        ctx.roundRect(bx, ry + 2, bw, 16, 4);
+        ctx.roundRect(bx, y + 2, bw, 15, 4);
         ctx.fill();
 
         ctx.fillStyle = '#2563eb';
         ctx.beginPath();
-        ctx.roundRect(bx, ry + 2, Math.max(6, (count / maxDayVal) * bw), 16, 4);
+        ctx.roundRect(bx, y + 2, Math.max(6, (cnt / maxDay) * bw), 15, 4);
         ctx.fill();
 
         ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 13px Segoe UI, sans-serif';
-        ctx.fillText(String(count), bx + bw + 8, ry + 15);
+        ctx.font = 'bold 12px Segoe UI, sans-serif';
+        ctx.fillText(String(cnt), bx + bw + 8, y + 14);
     });
 
-    // Γράφημα 3: Top ΠΔΕ
+    // ΚΑΡΤΑ 3: ΠΔΕ
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 15px Segoe UI, sans-serif';
-    ctx.fillText('Μαθητές & Διακοπές (Top ΠΔΕ)', cardXs.at(2) + 18, cardY + 28);
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('3. Μαθητές & Διακοπές (Top ΠΔΕ)', colXs.at(2) + 16, rowYs.at(0) + 26);
 
-    const maxPdeVal = topPdes.length ? topPdes.at(0).at(1).total : 1;
-    const chartBottom = cardY + 215;
-    const chartMaxH = 140;
-
-    topPdes.forEach(([pdeName, stats], i) => {
-        const colX = cardXs.at(2) + 28 + i * 58;
-        const colW = 34;
-        const totalH = Math.max(6, (stats.total / maxPdeVal) * chartMaxH);
-        const activeH = stats.total > 0 ? (stats.active / stats.total) * totalH : totalH;
-        const stopH = totalH - activeH;
+    const maxPde = topPdes.length ? topPdes.at(0).at(1).total : 1;
+    const cBottom = rowYs.at(0) + 250, cMaxH = 170;
+    topPdes.forEach(([pName, st], i) => {
+        const cx = colXs.at(2) + 26 + i * 58, cw = 34;
+        const totH = Math.max(6, (st.total / maxPde) * cMaxH);
+        const actH = st.total > 0 ? (st.active / st.total) * totH : totH;
+        const stpH = totH - actH;
 
         ctx.fillStyle = '#2563eb';
-        ctx.fillRect(colX, chartBottom - activeH, colW, activeH);
-
-        if (stopH > 0) {
+        ctx.fillRect(cx, cBottom - actH, cw, actH);
+        if (stpH > 0) {
             ctx.fillStyle = '#ef4444';
-            ctx.fillRect(colX, chartBottom - totalH, colW, stopH);
+            ctx.fillRect(cx, cBottom - totH, cw, stpH);
         }
 
         ctx.fillStyle = '#0f172a';
         ctx.font = 'bold 11px Segoe UI, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(String(stats.total), colX + colW / 2, chartBottom - totalH - 5);
+        ctx.fillText(String(st.total), cx + cw / 2, cBottom - totH - 5);
 
-        const shortPde = pdeName.replace(/ΠΔΕ\s*/i, '').slice(0, 7);
         ctx.fillStyle = '#475569';
         ctx.font = '10px Segoe UI, sans-serif';
-        ctx.fillText(shortPde, colX + colW / 2, chartBottom + 15);
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 9.5px Segoe UI, sans-serif';
+
+
+ctx.fillStyle = '#1e293b';
+ctx.font = 'bold 12px Segoe UI, sans-serif';
+ctx.fillText(getPdeShortCode(pName), cx + cw / 2, cBottom + 17);
+
+
+
+       
+
+
     });
     ctx.textAlign = 'left';
 
     ctx.fillStyle = '#2563eb';
-    ctx.fillRect(cardXs.at(2) + 85, cardY + 242, 10, 10);
+    ctx.fillRect(colXs.at(2) + 85, rowYs.at(0) + 286, 10, 10);
     ctx.fillStyle = '#334155';
     ctx.font = '11px Segoe UI, sans-serif';
-    ctx.fillText('Ενεργοί', cardXs.at(2) + 100, cardY + 251);
+    ctx.fillText('Ενεργοί', colXs.at(2) + 100, rowYs.at(0) + 295);
 
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(cardXs.at(2) + 165, cardY + 242, 10, 10);
+    ctx.fillRect(colXs.at(2) + 165, rowYs.at(0) + 286, 10, 10);
     ctx.fillStyle = '#334155';
-    ctx.fillText('Διακοπές', cardXs.at(2) + 180, cardY + 251);
+    ctx.fillText('Διακοπές', colXs.at(2) + 180, rowYs.at(0) + 295);
 
-    // Γράφημα 4: Top 5 Ειδικότητες
-    const botY = 566, botH = 285;
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.beginPath();
-    ctx.roundRect(32, botY, W - 64, botH, 10);
-    ctx.fill();
-    ctx.stroke();
 
+
+
+
+    // ΚΑΡΤΑ 4: Top 5 Ειδικότητες
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 16px Segoe UI, sans-serif';
-    ctx.fillText('Top 5 Ειδικότητες (βάσει πλήθους μαθητευομένων)', 50, botY + 32);
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('4. Top 5 Ειδικότητες (Μαθητές)', colXs.at(0) + 16, rowYs.at(1) + 26);
 
-    const maxEidVal = topEids.length ? topEids.at(0).at(1) : 1;
-    topEids.forEach(([name, count], idx) => {
-        const rowY = botY + 55 + idx * 42;
-        const shortName = name.length > 62 ? name.slice(0, 60) + '...' : name;
-
+    const maxEid = topEids.length ? topEids.at(0).at(1) : 1;
+    topEids.forEach(([name, cnt], i) => {
+        const y = rowYs.at(1) + 52 + i * 50;
         ctx.fillStyle = '#334155';
-        ctx.font = '13px Segoe UI, sans-serif';
-        ctx.fillText(shortName, 50, rowY + 18);
+        ctx.font = '11px Segoe UI, sans-serif';
+        ctx.fillText(name.length > 44 ? name.slice(0, 42) + '...' : name, colXs.at(0) + 16, y + 11);
 
-        const trackX = 520, trackW = 480;
+        const bx = colXs.at(0) + 16, bw = 265;
         ctx.fillStyle = '#e2e8f0';
         ctx.beginPath();
-        ctx.roundRect(trackX, rowY + 4, trackW, 18, 5);
+        ctx.roundRect(bx, y + 17, bw, 13, 4);
         ctx.fill();
 
         ctx.fillStyle = '#1d4ed8';
         ctx.beginPath();
-        ctx.roundRect(trackX, rowY + 4, Math.max(8, (count / maxEidVal) * trackW), 18, 5);
+        ctx.roundRect(bx, y + 17, Math.max(6, (cnt / maxEid) * bw), 13, 4);
         ctx.fill();
 
         ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 13px Segoe UI, sans-serif';
-        ctx.fillText(String(count), trackX + trackW + 12, rowY + 18);
+        ctx.font = 'bold 12px Segoe UI, sans-serif';
+        ctx.fillText(String(cnt), bx + bw + 8, y + 28);
+    });
+
+       // ΚΑΡΤΑ 5: Top 5 Κλάδοι Εκπαιδευτικών
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('5. Top 5 Κλάδοι Εκπ/κών (Αναθέσεις)', colXs.at(1) + 16, rowYs.at(1) + 26);
+
+    const maxKl = topKladoi.length ? topKladoi.at(0).at(1) : 1;
+    topKladoi.forEach(([kl, cnt], i) => {
+        const y = rowYs.at(1) + 52 + i * 50;
+        ctx.fillStyle = '#334155';
+        ctx.font = '11px Segoe UI, sans-serif';
+        ctx.fillText(kl.length > 44 ? kl.slice(0, 42) + '...' : kl, colXs.at(1) + 16, y + 11);
+
+        const bx = colXs.at(1) + 16, bw = 265;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.roundRect(bx, y + 17, bw, 13, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.roundRect(bx, y + 17, Math.max(6, (cnt / maxKl) * bw), 13, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 12px Segoe UI, sans-serif';
+        ctx.fillText(String(cnt), bx + bw + 8, y + 28);
+    });
+
+
+    // ΚΑΡΤΑ 6: Δείκτες Αποδοτικότητας & Ορίων
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.fillText('6. Δείκτες Τμημάτων & Ωρών', colXs.at(2) + 16, rowYs.at(1) + 26);
+
+    const metrics = [
+        { label: 'Μέσος όρος ενεργών μαθητών / τμήμα', val: avgStudents, bg: '#eff6ff', col: '#1e40af' },
+        { label: 'Τμήματα με < 5 ενεργούς μαθητές', val: `${lowSectionsCount} (${tmimataCount ? Math.round((lowSectionsCount / tmimataCount) * 100) : 0}%)`, bg: '#fef2f2', col: '#dc2626' },
+        { label: 'Σύνολο διδακτικών ωρών αναθέσεων', val: `${Math.round(totalHours)} ώρες`, bg: '#f0f9ff', col: '#0369a1' },
+        { label: 'Μέσος όρος ωρών ανά τμήμα', val: `${avgHours} ώρες`, bg: '#f0fdf4', col: '#15803d' }
+    ];
+
+    metrics.forEach((m, i) => {
+        const my = rowYs.at(1) + 52 + i * 61;
+        ctx.fillStyle = m.bg;
+        ctx.beginPath();
+        ctx.roundRect(colXs.at(2) + 16, my, cardW - 32, 50, 7);
+        ctx.fill();
+
+        ctx.fillStyle = '#334155';
+        ctx.font = '12px Segoe UI, sans-serif';
+        ctx.fillText(m.label, colXs.at(2) + 28, my + 20);
+
+        ctx.fillStyle = m.col;
+        ctx.font = 'bold 16px Segoe UI, sans-serif';
+        ctx.fillText(String(m.val), colXs.at(2) + 28, my + 41);
     });
 
     const bodyHtml = `
@@ -1507,10 +1663,17 @@ document.getElementById('statsImgBtn')?.addEventListener('click', openStatsImage
 
 
 
+// Εναλλαγή Καρτελών (Tabs)
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
 
-
-
-
+        btn.classList.add('active');
+        const targetPane = document.getElementById(btn.getAttribute('data-tab'));
+        if (targetPane) targetPane.classList.add('active');
+    });
+});
 
 
 
