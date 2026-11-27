@@ -97,7 +97,7 @@ body { background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
 /* Ενιαία Μπάρα Αριθμητικών Στοιχείων */
 .stats-bar {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 12px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -259,6 +259,34 @@ th {
 
 /* Accordion Groups */
 tr.group-dde, tr.group-epal { cursor: pointer; user-select: none; }
+
+tr.group-pde { cursor: pointer; user-select: none; }
+tr.group-pde td {
+    background: #dbeafe; /* Ανοιχτό γαλάζιο */
+    color: var(--primary-dark);
+    font-weight: 700;
+    font-size: 0.98rem;
+    border-top: 2px solid #93c5fd;
+    border-bottom: 1px solid #93c5fd;
+}
+tr.group-pde:hover td { background: #bfdbfe; }
+tr.group-pde .group-badge {
+    background: var(--primary-dark);
+    color: #ffffff;
+}
+
+/* Ελαφριά εσοχή στη ΔΔΕ αφού πλέον βρίσκεται κάτω από την ΠΔΕ */
+tr.group-dde td { padding-left: 16px; }
+tr.group-pde:hover td { background: #1e293b; }
+tr.group-pde .group-badge { background: var(--primary-dark) !important; color: #ffffff !important;}
+
+/* Ελαφριά εσοχή στη ΔΔΕ αφού πλέον βρίσκεται κάτω από την ΠΔΕ */
+tr.group-dde td { padding-left: 16px; }
+
+
+
+
+
 .toggle-arrow { display: inline-block; width: 18px; font-size: 0.8rem; }
 
 .group-badge {
@@ -405,3 +433,39 @@ tr.tmima-row.active-row td { background: #fef9c3; font-weight: 600; }
     padding: 2px 8px;
     border-radius: 5px;
 }
+
+.students-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.seats-stop-pill {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid #fca5a5;
+    font-size: 0.78rem;
+    padding: 3px 8px;
+}
+.seats-stop-pill:hover {
+    background: #fee2e2;
+}
+
+.btn-info { background: #0284c7; color: #fff; }
+.btn-info:hover { background: #0369a1; }
+
+.stats-canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.stats-canvas-wrap canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+
